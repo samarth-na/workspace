@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { StatusIndicator } from "@/components/shared/status-indicator";
 import { getMessagesForConversation, getActivitiesForConversation, getUserById } from "@/lib/data";
 import type { Conversation, DirectConversation } from "@/lib/types";
-import { Paperclip, Send, MoreVertical, Phone, Video } from "lucide-react";
+import { Paperclip, Send, MoreVertical } from "lucide-react";
 
 interface ChatViewProps {
   conversation: Conversation | null;
@@ -73,15 +73,15 @@ export function ChatView({ conversation, currentUserId }: ChatViewProps) {
 
           {/* Info */}
           <div>
-            <h2 className="text-sm font-semibold text-foreground">
+            <h2 className="text-[13px] font-semibold text-foreground">
               {conversation.name}
             </h2>
             {isDirect && otherUser ? (
-              <p className="text-xs text-muted-foreground capitalize">
+              <p className="text-[11px] text-muted-foreground capitalize">
                 {otherUser.status}
               </p>
             ) : (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-[11px] text-muted-foreground">
                 {conversation.participants.length} members
               </p>
             )}
@@ -90,12 +90,6 @@ export function ChatView({ conversation, currentUserId }: ChatViewProps) {
 
         {/* Actions */}
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground">
-            <Phone className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground">
-            <Video className="h-4 w-4" />
-          </Button>
           <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground">
             <MoreVertical className="h-4 w-4" />
           </Button>
@@ -137,19 +131,19 @@ export function ChatView({ conversation, currentUserId }: ChatViewProps) {
       </ScrollArea>
 
       {/* Message Input */}
-      <div className="border-t border-border p-4">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 text-muted-foreground">
-            <Paperclip className="h-4 w-4" />
+      <div className="border-t border-border/60 bg-background/80 backdrop-blur-md p-4">
+        <div className="flex items-center gap-2 max-w-4xl mx-auto">
+          <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+            <Paperclip className="h-5 w-5" strokeWidth={1.5} />
           </Button>
-          
+
           <Input
-            placeholder="Type a message..."
-            className="flex-1 border-border bg-input text-foreground placeholder:text-muted-foreground"
+            placeholder="iMessage"
+            className="flex-1 h-10 rounded-full border-border/50 bg-secondary/50 px-4 text-[14px] focus-visible:ring-1 focus-visible:ring-primary focus-visible:bg-background transition-all shadow-inner shadow-black/5"
           />
-          
-          <Button size="icon" className="h-9 w-9 shrink-0">
-            <Send className="h-4 w-4" />
+
+          <Button size="icon" className="h-10 w-10 shrink-0 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm shadow-primary/20 transition-transform active:scale-95">
+            <Send className="h-4 w-4 ml-0.5" />
           </Button>
         </div>
       </div>

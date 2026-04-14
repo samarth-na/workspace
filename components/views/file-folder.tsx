@@ -6,7 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { FileCard } from "@/components/shared/file-card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SearchBar } from "@/components/shared/search-bar";
-import { getFiles, getFolders, formatFileSize } from "@/lib/data";
+import { getFiles, getFolders } from "@/lib/data";
 import { Upload, Grid, List, Folder, ChevronRight, Filter } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -103,6 +103,7 @@ export function FileFolder({ onUpload }: FileFolderProps) {
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
                 {folders.map((folder) => (
                   <button
+                    type="button"
                     key={folder.id}
                     onClick={() => setCurrentFolder(folder.id)}
                     className="flex items-center gap-3 rounded-lg border border-border/50 p-3 transition-colors hover:bg-accent"
@@ -125,6 +126,7 @@ export function FileFolder({ onUpload }: FileFolderProps) {
           {/* Back button when in folder */}
           {currentFolder && (
             <button
+              type="button"
               onClick={() => setCurrentFolder(null)}
               className="mb-4 text-sm text-muted-foreground hover:text-foreground"
             >

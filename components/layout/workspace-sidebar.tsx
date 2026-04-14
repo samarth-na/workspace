@@ -1,18 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SearchBar } from "@/components/shared/search-bar";
 import { ConversationListItem } from "@/components/shared/conversation-list-item";
 import { EmptyState } from "@/components/shared/empty-state";
-import { PanelLeft, Plus, Users } from "lucide-react";
+import { Plus, MessageCircle } from "lucide-react";
 import type { Conversation } from "@/lib/types";
 
 interface WorkspaceSidebarProps {
-  isCollapsed: boolean;
-  onToggle: () => void;
   conversations: Conversation[];
   activeConversationId: string | null;
   onConversationSelect: (id: string) => void;
@@ -21,13 +18,11 @@ interface WorkspaceSidebarProps {
 }
 
 export function WorkspaceSidebar({
-  isCollapsed,
-  onToggle,
   conversations,
   activeConversationId,
   onConversationSelect,
   onNewConversation,
-  width = 280,
+  width = 300,
 }: WorkspaceSidebarProps) {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -35,76 +30,58 @@ export function WorkspaceSidebar({
     conv.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  if (isCollapsed) {
-    return null;
-  }
-
   return (
-    <aside
-      className="fixed left-16 top-0 z-40 flex h-full flex-col border-r border-border bg-background"
-      style={{ width }}
-    >
-      {/* Header */}
-      <div className="flex h-14 items-center justify-between border-b border-border px-4">
+    <aside className="flex h-full w-full flex-col bg-background" style={{ width: `${width}px` }}>
+      {/* Header - Asymmetric */}
+      <div className="sticky top-0 z-10 flex h-14 shrink-0 items-center justify-between border-b border-border bg-background/60 px-5 glass-effect">
         <div className="flex items-center gap-2">
-          <Users className="h-5 w-5 text-muted-foreground" />
-          <h2 className="text-sm font-medium text-foreground">Conversations</h2>
+          <MessageCircle className="h-4 w-4 text-primary" strokeWidth={2} />
+          <h2 className="text-sm font-semibold text-foreground tracking-[-0.01em]">Messages</h2>
         </div>
-        
-        <div className="flex items-center gap-1">
+
+        <div className="flex items-center gap-0.5">
           <Button
             variant="ghost"
             size="icon"
             onClick={onNewConversation}
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            className="h-7 w-7 rounded-sm text-muted-foreground hover:text-foreground"
           >
-            <Plus className="h-4 w-4" />
-          </Button>
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onToggle}
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-          >
-            <PanelLeft className="h-4 w-4" />
+            <Plus className="h-3.5 w-3.5" strokeWidth={2} />
           </Button>
         </div>
       </div>
 
       {/* Search */}
-      <div className="border-b border-border p-3">
+      <div className="border-b border-border px-5 py-3.5">
         <SearchBar
-          placeholder="Search conversations..."
+          placeholder="Search..."
           value={searchQuery}
           onChange={setSearchQuery}
         />
       </div>
 
-      {/* Conversation List */}
+      {/* Conversation List - Tight spacing */}
       <ScrollArea className="flex-1">
-        <div className="p-2">
-          {filteredConversations.length === 0 ? (
-            <div className="py-8">
-              <EmptyState
-                type="search"
-                title="No conversations found"
-                description={searchQuery ? "Try a different search term" : "Start a new conversation"}
+        {filteredConversations.length === 0 ? (
+          <div className="py-12">
+            <EmptyState
+              type="search"
+              title="No conversations"
+              description={searchQuery ? "Try a different search" : "Start a new conversation"}
+            />
+          </div>
+        ) : (
+          <div className="space-y-1 py-3">
+            {filteredConversations.map((conversation) => (
+              <ConversationListItem
+                key={conversation.id}
+                conversation={conversation}
+                isActive={conversation.id === activeConversationId}
+                onClick={() => onConversationSelect(conversation.id)}
               />
-            </div>
-          ) : (
-            <div className="space-y-1">
-              {filteredConversations.map((conversation) => (
-                <ConversationListItem
-                  key={conversation.id}
-                  conversation={conversation}
-                  isActive={conversation.id === activeConversationId}
-                  onClick={() => onConversationSelect(conversation.id)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </ScrollArea>
     </aside>
   );

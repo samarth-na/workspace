@@ -1,4 +1,3 @@
-import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import type { FileItem } from "@/lib/types";
 import { getUserById } from "@/lib/data";
@@ -44,6 +43,7 @@ export function FileCard({ file, viewMode, onClick }: FileCardProps) {
   if (viewMode === "list") {
     return (
       <button
+        type="button"
         onClick={onClick}
         className="flex w-full items-center gap-4 rounded-lg border border-border/50 p-3 transition-colors hover:bg-accent"
       >
@@ -69,6 +69,7 @@ export function FileCard({ file, viewMode, onClick }: FileCardProps) {
   
   return (
     <button
+      type="button"
       onClick={onClick}
       className="flex flex-col gap-3 rounded-lg border border-border/50 p-4 transition-colors hover:bg-accent"
     >
