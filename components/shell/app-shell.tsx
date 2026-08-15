@@ -3,7 +3,6 @@
 import { Check } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { cn } from "@/lib/utils";
 import { CreateMenu } from "./create-menu";
 import { Header } from "./header";
 import { ProfileMenu } from "./profile-menu";
@@ -106,12 +105,7 @@ export function AppShell({
 
   return (
     <ShellContext.Provider value={value}>
-      <div
-        className={cn(
-          "linear-workspace flex bg-[var(--bg-base-color)] text-[var(--color-text-secondary)]",
-          isMessagesPath ? "h-dvh overflow-hidden" : "min-h-dvh",
-        )}
-      >
+      <div className="linear-workspace flex h-dvh overflow-hidden bg-[var(--bg-base-color)] text-[var(--color-text-secondary)]">
         <DesktopSidebar pathname={pathname} unread={unread} />
         {showMobileSidebar ? (
           <div className="fixed inset-0 z-40 lg:hidden">
@@ -144,8 +138,10 @@ export function AppShell({
               {children}
             </div>
           ) : (
-            <div className="mx-auto w-full max-w-[1380px] px-5 pb-14 pt-8 sm:px-8 lg:px-12">
-              {children}
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <div className="mx-auto w-full max-w-[1380px] px-5 pb-14 pt-8 sm:px-8 lg:px-12">
+                {children}
+              </div>
             </div>
           )}
         </main>
