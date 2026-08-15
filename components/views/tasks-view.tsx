@@ -165,14 +165,14 @@ export function TasksView({
         </Button>
       </div>
 
-      <div className="mb-4 flex w-fit items-center gap-1 rounded-xl border border-[#e5e7ec] bg-white p-1 shadow-[0_1px_2px_rgba(32,41,60,0.03)]">
+      <div className="mb-4 flex w-fit max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-[#e5e7ec] bg-white p-1 shadow-[0_1px_2px_rgba(32,41,60,0.03)]">
         {VIEWS.map((item) => (
           <button
             key={item.id}
             type="button"
             aria-pressed={view === item.id}
             className={cn(
-              "flex items-center gap-2 rounded-lg px-3 py-1.5 text-[12px] font-medium transition-colors",
+              "flex shrink-0 items-center gap-2 rounded-lg px-3 py-1.5 text-[12px] font-medium transition-colors",
               view === item.id
                 ? "bg-[#eef0ff] text-[#4e57c5]"
                 : "text-[#8c94a4] hover:bg-[#f4f5f8] hover:text-[#414a5d]",
@@ -180,7 +180,7 @@ export function TasksView({
             onClick={() => setView(item.id)}
           >
             <item.icon className="size-3.5" />
-            {item.label}
+            <span className="hidden sm:inline">{item.label}</span>
           </button>
         ))}
       </div>

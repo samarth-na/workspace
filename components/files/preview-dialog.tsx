@@ -84,7 +84,7 @@ function PreviewDialog({
           </div>
         </div>
 
-        <div className="relative flex min-h-0 flex-1 items-center justify-center px-14">
+        <div className="relative flex min-h-0 flex-1 items-center justify-center px-10 sm:px-14">
           <div className="relative h-full max-h-[calc(100vh-140px)] w-full max-w-4xl">
             <Image
               src={image.url}

@@ -16,6 +16,7 @@ import {
   Users,
   Video,
   VideoOff,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -690,12 +691,21 @@ function MeetingRoom({ meetingId }: { meetingId: string }) {
           </footer>
         </main>
         {showParticipants ? (
-          <ParticipantsPanel
-            meeting={meeting}
-            peers={peers}
-            selfName={nameRef.current}
-            selfState={currentPeerStates}
-          />
+          <>
+            <button
+              type="button"
+              aria-label="Close participants"
+              className="fixed inset-0 z-40 cursor-default bg-black/50 lg:hidden"
+              onClick={() => setShowParticipants(false)}
+            />
+            <ParticipantsPanel
+              meeting={meeting}
+              peers={peers}
+              selfName={nameRef.current}
+              selfState={currentPeerStates}
+              onClose={() => setShowParticipants(false)}
+            />
+          </>
         ) : null}
       </div>
 
@@ -889,19 +899,31 @@ function ParticipantsPanel({
   peers,
   selfName,
   selfState,
+  onClose,
 }: {
   meeting: MeetingSummary | null;
   peers: MeetingPeer[];
   selfName: string;
   selfState: { muted: boolean; cameraOn: boolean; sharing: boolean };
+  onClose: () => void;
 }) {
   return (
-    <aside className="hidden w-[260px] shrink-0 border-l border-white/10 p-4 lg:block">
+    <aside className="fixed inset-y-0 right-0 z-50 flex w-[85vw] max-w-[320px] flex-col overflow-y-auto border-l border-white/10 bg-[#11131a] p-4 lg:static lg:z-auto lg:w-[260px] lg:shrink-0">
       <div className="flex items-center justify-between">
         <h2 className="text-[13px] font-semibold text-[#e8eaf0]">
           Participants
         </h2>
-        <span className="text-[11px] text-[#8b93a7]">{peers.length + 1}</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] text-[#8b93a7]">{peers.length + 1}</span>
+          <button
+            type="button"
+            aria-label="Close participants"
+            className="rounded-lg p-1 text-[#8b93a7] transition-colors hover:bg-white/10 hover:text-white lg:hidden"
+            onClick={onClose}
+          >
+            <X className="size-4" />
+          </button>
+        </div>
       </div>
       <p className="mt-1 text-[11px] text-[#6d7488]">
         {meeting?.description ?? "Join the conversation."}

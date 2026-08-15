@@ -232,7 +232,7 @@ function LiveMeetingCard({
       <p className="mt-3 text-[13px] text-[#b9c0d2]">
         {meeting.description ?? "Join the conversation."}
       </p>
-      <div className="mt-10 flex items-center justify-between">
+      <div className="mt-10 flex flex-wrap items-center justify-between gap-3">
         <AvatarStack members={meeting.members} />
         <div className="flex items-center gap-2">
           {canEnd ? (

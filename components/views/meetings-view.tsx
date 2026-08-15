@@ -402,7 +402,7 @@ function UpcomingMeetingRow({
 }) {
   return (
     <div className="px-5 py-3.5">
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#eef0ff] text-[#5b64d6]">
           <Video className="size-4" />
         </div>
