@@ -28,8 +28,8 @@ import {
   startMeeting,
 } from "@/components/meetings/meeting-api";
 import { NewMeetingDialog } from "@/components/meetings/new-meeting-dialog";
-import { useShell } from "@/components/shell/shell-context";
 import { ViewFrame } from "@/components/shared/view-frame";
+import { useShell } from "@/components/shell/shell-context";
 import { Button } from "@/components/ui/button";
 import type { AvatarUser } from "@/lib/chat-types";
 import type { MeetingNote, MeetingSummary } from "@/lib/meeting-types";
@@ -86,7 +86,9 @@ function MeetingsView() {
         }
       } catch (err) {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : "Failed to load meetings");
+        setError(
+          err instanceof Error ? err.message : "Failed to load meetings",
+        );
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -161,7 +163,9 @@ function MeetingsView() {
   const now = Date.now();
   const live = meetings.filter((meeting) => meeting.status === "live");
   const upcoming = meetings
-    .filter((meeting) => meeting.status === "scheduled" && meeting.startsAt > now)
+    .filter(
+      (meeting) => meeting.status === "scheduled" && meeting.startsAt > now,
+    )
     .sort((a, b) => a.startsAt - b.startsAt);
   const past = meetings
     .filter((meeting) => meeting.status === "ended")
@@ -659,9 +663,7 @@ function NotesBlock({
               className="h-8 shrink-0 bg-[#5b64d6] text-[11px] font-semibold hover:bg-[#4e57c5]"
               onClick={() => void submit()}
             >
-              {submitting ? (
-                <Loader2 className="size-3 animate-spin" />
-              ) : null}
+              {submitting ? <Loader2 className="size-3 animate-spin" /> : null}
               Add note
             </Button>
           </div>
@@ -906,7 +908,9 @@ function AvatarStack({
         <span
           className={cn(
             "flex size-7 items-center justify-center rounded-full border-2 text-[9px] font-semibold text-white",
-            dark ? "border-[#242d47] bg-[#4b5675]" : "border-white bg-[#8b94a5]",
+            dark
+              ? "border-[#242d47] bg-[#4b5675]"
+              : "border-white bg-[#8b94a5]",
           )}
         >
           +{extra}
@@ -931,8 +935,7 @@ function formatMeetingTime(timestamp: number) {
       weekday: "short",
       month: "short",
       day: "numeric",
-    }) +
-    ` · ${time}`
+    }) + ` · ${time}`
   );
 }
 

@@ -5,7 +5,10 @@ import { db } from "@/db";
 import { meeting } from "@/db/meetings";
 import { getSessionUser } from "@/lib/chat-data";
 import { addMeetingNote, listMeetingNotes } from "@/lib/meeting-data";
-import type { MeetingNoteInput, MeetingNotesResponse } from "@/lib/meeting-types";
+import type {
+  MeetingNoteInput,
+  MeetingNotesResponse,
+} from "@/lib/meeting-types";
 import { getSessionWorkspace, previewWorkspaceId } from "@/lib/workspace-data";
 
 async function findWorkspaceMeeting(meetingId: string) {

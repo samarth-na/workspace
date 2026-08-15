@@ -1,5 +1,5 @@
-import { and, desc, eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
+import { and, desc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { meeting, meetingMember, meetingNote } from "@/db/meetings";
@@ -154,9 +154,7 @@ export async function addMeetingNote(
   content: string,
 ): Promise<MeetingNote> {
   const id = randomUUID();
-  await db
-    .insert(meetingNote)
-    .values({ id, meetingId, userId, content });
+  await db.insert(meetingNote).values({ id, meetingId, userId, content });
   const notes = await listMeetingNotes(meetingId);
   const note = notes.find((entry) => entry.id === id);
   if (!note) {

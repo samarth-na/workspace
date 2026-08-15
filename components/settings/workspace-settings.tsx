@@ -20,6 +20,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { compressImage } from "@/lib/image-compress";
 import { cn } from "@/lib/utils";
 import type {
   WorkspaceMemberItem,
@@ -133,8 +134,9 @@ export function WorkspaceSettings({
     setUploadingLogo(true);
     setError("");
     try {
+      const compressed = await compressImage(file);
       const form = new FormData();
-      form.append("file", file);
+      form.append("file", compressed);
       const response = await fetch("/api/upload", {
         method: "POST",
         body: form,

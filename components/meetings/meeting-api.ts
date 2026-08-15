@@ -68,7 +68,9 @@ export function startMeeting(meetingId: string): Promise<MeetingResponse> {
   });
 }
 
-export function fetchMeetingNotes(meetingId: string): Promise<MeetingNotesResponse> {
+export function fetchMeetingNotes(
+  meetingId: string,
+): Promise<MeetingNotesResponse> {
   return request<MeetingNotesResponse>(`/api/meetings/${meetingId}/notes`);
 }
 

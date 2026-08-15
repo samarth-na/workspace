@@ -43,8 +43,9 @@ export function ProfileMenu({
     setError("");
     setUploading(true);
     try {
+      const compressed = await compressImage(file);
       const form = new FormData();
-      form.append("file", file);
+      form.append("file", compressed);
       const response = await fetch("/api/upload", {
         method: "POST",
         body: form,

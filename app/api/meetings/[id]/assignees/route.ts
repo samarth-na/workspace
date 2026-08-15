@@ -6,7 +6,10 @@ import { meeting, meetingMember } from "@/db/meetings";
 import { user } from "@/db/schema";
 import { getSessionUser } from "@/lib/chat-data";
 import { getMeeting } from "@/lib/meeting-data";
-import type { MeetingAssigneesInput, MeetingResponse } from "@/lib/meeting-types";
+import type {
+  MeetingAssigneesInput,
+  MeetingResponse,
+} from "@/lib/meeting-types";
 import { getSessionWorkspace, workspaceMemberIds } from "@/lib/workspace-data";
 
 export async function PUT(
@@ -31,7 +34,9 @@ export async function PUT(
   const rows = await db
     .select()
     .from(meeting)
-    .where(and(eq(meeting.id, id), eq(meeting.workspaceId, context.workspaceId)))
+    .where(
+      and(eq(meeting.id, id), eq(meeting.workspaceId, context.workspaceId)),
+    )
     .limit(1);
   const row = rows[0];
   if (!row) {
@@ -41,7 +46,8 @@ export async function PUT(
   const body = (await request.json()) as MeetingAssigneesInput;
   const memberIds = Array.isArray(body.memberIds)
     ? [...new Set(body.memberIds)].filter(
-        (entry): entry is string => typeof entry === "string" && entry.length > 0,
+        (entry): entry is string =>
+          typeof entry === "string" && entry.length > 0,
       )
     : [];
   const workspaceMembers = await workspaceMemberIds(context.workspaceId);
@@ -62,9 +68,7 @@ export async function PUT(
     }
   }
 
-  await db
-    .delete(meetingMember)
-    .where(eq(meetingMember.meetingId, id));
+  await db.delete(meetingMember).where(eq(meetingMember.meetingId, id));
   if (memberIds.length > 0) {
     await db
       .insert(meetingMember)

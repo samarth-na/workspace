@@ -157,7 +157,7 @@ export function DesktopSidebar({
 
       {collapsed ? null : (
         <>
-          <div className="rounded-xl bg-[#e9e9ea] px-2.5 py-2">
+          <div className="rounded-xl bg-[#e2f3ea] px-2.5 py-2">
             <div className="flex items-center justify-between text-[13px] font-medium text-[#4f4f52]">
               <button
                 type="button"
@@ -311,7 +311,7 @@ export function MobileSidebar({
           />
         ))}
       </nav>
-      <div className="rounded-xl bg-[#ececed] px-2.5 py-2">
+      <div className="rounded-xl bg-[#e2f3ea] px-2.5 py-2">
         <div className="flex items-center justify-between text-[14px] text-[#4d4d50]">
           <button
             type="button"

@@ -73,9 +73,7 @@ function MeetingSidebarItem({
       </span>
       <span
         className={
-          mobile
-            ? "text-[12px] text-[#99999b]"
-            : "text-[11px] text-[#969699]"
+          mobile ? "text-[12px] text-[#99999b]" : "text-[11px] text-[#969699]"
         }
       >
         {timeLabel}

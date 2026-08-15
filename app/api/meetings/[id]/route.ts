@@ -45,7 +45,11 @@ export async function POST(
   const context = await getSessionWorkspace();
   const workspaceId = context?.workspaceId ?? (await previewWorkspaceId());
   const body = (await request.json()) as { action?: string };
-  if (body.action !== "join" && body.action !== "start" && body.action !== "end") {
+  if (
+    body.action !== "join" &&
+    body.action !== "start" &&
+    body.action !== "end"
+  ) {
     return NextResponse.json(
       { error: "action must be join, start or end" },
       { status: 400 },

@@ -27,7 +27,9 @@ export function compressImage(
   );
 }
 
-function decodeDimensions(file: File): Promise<{ width: number; height: number }> {
+function decodeDimensions(
+  file: File,
+): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const image = new Image();

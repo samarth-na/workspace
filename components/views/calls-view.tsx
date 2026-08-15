@@ -11,10 +11,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import {
-  endMeeting,
-  fetchMeetings,
-} from "@/components/meetings/meeting-api";
+import { endMeeting, fetchMeetings } from "@/components/meetings/meeting-api";
 import { NewMeetingDialog } from "@/components/meetings/new-meeting-dialog";
 import { ViewFrame } from "@/components/shared/view-frame";
 import { useShell } from "@/components/shell/shell-context";
@@ -81,7 +78,9 @@ function CallsView() {
     try {
       const response = await endMeeting(meetingId);
       setMeetings((prev) =>
-        prev.map((entry) => (entry.id === meetingId ? response.meeting : entry)),
+        prev.map((entry) =>
+          entry.id === meetingId ? response.meeting : entry,
+        ),
       );
       notify("Meeting ended");
     } catch (err) {
