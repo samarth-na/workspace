@@ -7,18 +7,41 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { file } from "@/db/files";
 import { getSessionUser } from "@/lib/chat-data";
-import type { FilesResponse, UploadFileResponse } from "@/lib/file-types";
-import { fetchFiles, toFileItem } from "@/lib/files-data";
+import type {
+  FolderContentsResponse,
+  UploadFileResponse,
+} from "@/lib/file-types";
+import {
+  fetchAllFiles,
+  fetchFiles,
+  fetchFolderPath,
+  fetchFolderRow,
+  fetchFolders,
+  toFileItem,
+} from "@/lib/files-data";
+import { getSessionWorkspace, previewWorkspaceId } from "@/lib/workspace-data";
 
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
 const MAX_NAME_LENGTH = 180;
 
-export async function GET() {
+export async function GET(request: Request) {
   const self = await getSessionUser();
-  const files = await fetchFiles();
-  return NextResponse.json<FilesResponse>({
+  const context = await getSessionWorkspace();
+  const workspaceId = context?.workspaceId ?? (await previewWorkspaceId());
+  const url = new URL(request.url);
+  const folderParam = url.searchParams.get("folder");
+  const all = folderParam === "all";
+  const folderId = all ? null : folderParam;
+  const [files, folders, folderPath] = await Promise.all([
+    all ? fetchAllFiles(workspaceId) : fetchFiles(folderId, workspaceId),
+    all ? [] : fetchFolders(folderId, workspaceId),
+    all ? [] : fetchFolderPath(folderId, workspaceId),
+  ]);
+  return NextResponse.json<FolderContentsResponse>({
     files,
+    folders,
+    path: folderPath,
     isPreview: !self,
   });
 }
@@ -28,9 +51,20 @@ export async function POST(request: Request) {
   if (!self) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const context = await getSessionWorkspace();
+  if (!context) {
+    return NextResponse.json({ error: "No workspace" }, { status: 403 });
+  }
 
   const form = await request.formData();
   const upload = form.get("file");
+  const folderId = form.get("folder");
+  if (typeof folderId === "string" && folderId.length > 0) {
+    const parent = await fetchFolderRow(folderId, context.workspaceId);
+    if (!parent) {
+      return NextResponse.json({ error: "Folder not found" }, { status: 400 });
+    }
+  }
   if (!(upload instanceof File)) {
     return NextResponse.json(
       { error: "file is required as multipart/form-data" },
@@ -69,6 +103,9 @@ export async function POST(request: Request) {
       mimeType: upload.type || "application/octet-stream",
       size: upload.size,
       storedName,
+      folderId:
+        typeof folderId === "string" && folderId.length > 0 ? folderId : null,
+      workspaceId: context.workspaceId,
       uploaderId: self.id,
     })
     .returning({ createdAt: file.createdAt });

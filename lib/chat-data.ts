@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 
 import { db } from "@/db";
 import {
-  type conversation,
+  conversation,
   conversationMember,
   message,
   messageReaction,
@@ -69,6 +69,50 @@ export async function isMember(
     )
     .limit(1);
   return rows.length > 0;
+}
+
+export async function conversationBelongsToWorkspace(
+  conversationId: string,
+  workspaceId: string,
+): Promise<boolean> {
+  const rows = await db
+    .select({ id: conversation.id })
+    .from(conversation)
+    .where(
+      and(
+        eq(conversation.id, conversationId),
+        eq(conversation.workspaceId, workspaceId),
+      ),
+    )
+    .limit(1);
+  return rows.length > 0;
+}
+
+export async function listConversations(
+  userId: string | null,
+  workspaceId: string,
+): Promise<(typeof conversation.$inferSelect)[]> {
+  const wsFilter = eq(conversation.workspaceId, workspaceId);
+  if (userId === null) {
+    return db
+      .select()
+      .from(conversation)
+      .where(wsFilter)
+      .orderBy(desc(conversation.updatedAt));
+  }
+  const rows = await db
+    .select()
+    .from(conversation)
+    .innerJoin(
+      conversationMember,
+      and(
+        eq(conversationMember.conversationId, conversation.id),
+        eq(conversationMember.userId, userId),
+      ),
+    )
+    .where(wsFilter)
+    .orderBy(desc(conversation.updatedAt));
+  return rows.map((row) => row.conversation);
 }
 
 export async function fetchMembers(

@@ -2,329 +2,476 @@
 
 import {
   ArrowUpRight,
-  ChevronDown,
+  FileAudio,
   FileText,
+  FileVideo,
   Image,
-  MessageCircle,
-  Plus,
+  Presentation,
   Search,
-  Settings2,
   Table2,
   Video,
 } from "lucide-react";
 import { useShell } from "@/components/shell/shell-context";
 import { Button } from "@/components/ui/button";
+import type { FileItem } from "@/lib/file-types";
+import type { HomeData, HomeTaskItem } from "@/lib/home-data";
+import type { MeetingSummary } from "@/lib/meeting-types";
+import { STATUS_META } from "@/lib/task-meta";
 
-type FileTone = "indigo" | "orange" | "green" | "rose";
-type FileItem = {
-  name: string;
-  type: string;
-  size: string;
-  updated: string;
-  icon: typeof FileText;
-  tone: FileTone;
-};
-
-// biome-ignore lint/correctness/noUnusedVariables: duplicate demo data required by spec
-const files: FileItem[] = [
-  {
-    name: "Q3 product brief",
-    type: "Document",
-    size: "2.4 MB",
-    updated: "Updated 18 min ago",
-    icon: FileText,
-    tone: "indigo",
-  },
-  {
-    name: "Launch moodboard",
-    type: "Images",
-    size: "18 items",
-    updated: "Updated yesterday",
-    icon: Image,
-    tone: "orange",
-  },
-  {
-    name: "Sprint planning",
-    type: "Spreadsheet",
-    size: "840 KB",
-    updated: "Updated Aug 14",
+const KIND_META = {
+  image: { label: "Image", icon: Image, tone: "bg-[#fef0e5] text-[#d97757]" },
+  pdf: { label: "PDF", icon: FileText, tone: "bg-[#fbeae8] text-[#d65a52]" },
+  spreadsheet: {
+    label: "Spreadsheet",
     icon: Table2,
-    tone: "green",
+    tone: "bg-[#e7f4ea] text-[#4caf7d]",
   },
-  {
-    name: "Team offsite 2026",
-    type: "Presentation",
-    size: "12 slides",
-    updated: "Updated Aug 12",
+  presentation: {
+    label: "Presentation",
+    icon: Presentation,
+    tone: "bg-[#f3e8fb] text-[#8b5cf6]",
+  },
+  video: {
+    label: "Video",
+    icon: FileVideo,
+    tone: "bg-[#e2e9f7] text-[#5b64d6]",
+  },
+  audio: {
+    label: "Audio",
+    icon: FileAudio,
+    tone: "bg-[#e2e9f7] text-[#5b64d6]",
+  },
+  document: {
+    label: "Document",
     icon: FileText,
-    tone: "rose",
+    tone: "bg-[#eef0f3] text-[#7d8494]",
   },
-];
+} as const;
 
-export function HomeView() {
-  const { userName, notify, navigate, openSearch, openCreate } = useShell();
+type FileKind = keyof typeof KIND_META;
+
+function kindFor(item: { mimeType: string; name: string }): FileKind {
+  const mime = item.mimeType;
+  const ext = item.name.split(".").pop()?.toLowerCase() ?? "";
+  if (mime.startsWith("image/")) return "image";
+  if (mime === "application/pdf") return "pdf";
+  if (mime.includes("spreadsheet") || ["csv", "xls", "xlsx"].includes(ext)) {
+    return "spreadsheet";
+  }
+  if (mime.includes("presentation") || ["ppt", "pptx", "key"].includes(ext)) {
+    return "presentation";
+  }
+  if (mime.startsWith("video/")) return "video";
+  if (mime.startsWith("audio/")) return "audio";
+  return "document";
+}
+
+function startOfDay(date: Date): number {
+  return new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+  ).getTime();
+}
+
+function dayDiff(timestamp: number, now: Date): number {
+  return Math.round(
+    (startOfDay(new Date(timestamp)) - startOfDay(now)) / 86_400_000,
+  );
+}
+
+function dueLabel(timestamp: number, now: Date): string {
+  const diff = dayDiff(timestamp, now);
+  if (diff < 0) return "Overdue";
+  if (diff === 0) return "Today";
+  if (diff === 1) return "Tomorrow";
+  return new Date(timestamp).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function whenLabel(timestamp: number, now: Date): string {
+  const diff = dayDiff(timestamp, now);
+  if (diff === 0) return "Today";
+  if (diff === -1) return "Yesterday";
+  return new Date(timestamp).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function timeLabel(timestamp: number): string {
+  return new Date(timestamp).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ["KB", "MB", "GB"];
+  let value = bytes / 1024;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  const text = value >= 100 ? `${Math.round(value)}` : value.toFixed(1);
+  return `${text} ${units[unit]}`;
+}
+
+export function HomeView({
+  userName,
+  workspaceName,
+  tasks,
+  meetings,
+  files,
+}: HomeData & { userName: string; workspaceName: string }) {
+  const { notify, navigate, openSearch } = useShell();
   const firstName = userName.split(" ")[0];
+  const now = new Date();
+  const hour = now.getHours();
+  const greeting =
+    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const dateLabel = now.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
 
   return (
     <section className="overflow-hidden rounded-xl border border-[var(--bg-border-color)] bg-[var(--color-bg-primary)] shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
       <div className="flex items-center justify-between border-b border-[#ededee] px-5 py-4 sm:px-6">
         <div>
           <p className="text-[11px] font-medium text-[#99999c]">
-            Workspace · {firstName}
+            {workspaceName}
           </p>
-          <h1 className="mt-1 text-[18px] font-semibold tracking-[-0.025em] text-[#29292c]">
-            Home
+          <h1
+            className="mt-1 text-[18px] font-semibold tracking-[-0.025em] text-[#29292c]"
+            suppressHydrationWarning
+          >
+            {greeting}, {firstName}
           </h1>
+          <p
+            className="mt-0.5 text-[11px] text-[#a0a0a3]"
+            suppressHydrationWarning
+          >
+            {dateLabel}
+          </p>
         </div>
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            aria-label="Search workspace"
-            className="flex size-8 items-center justify-center rounded-lg text-[#89898c] hover:bg-[#f0f0f1] hover:text-[#454548]"
-            onClick={openSearch}
-          >
-            <Search className="size-[17px]" strokeWidth={1.8} />
-          </button>
-          <button
-            type="button"
-            aria-label="Workspace filters"
-            className="flex size-8 items-center justify-center rounded-lg text-[#89898c] hover:bg-[#f0f0f1] hover:text-[#454548]"
-            onClick={() => notify("Workspace filters opened")}
-          >
-            <Settings2 className="size-[17px]" strokeWidth={1.8} />
-          </button>
-          <Button
-            className="ml-1 hidden h-8 rounded-lg bg-[#2e2e31] px-3 text-[12px] font-medium text-white hover:bg-[#444448] sm:flex"
-            onClick={openCreate}
-          >
-            <Plus className="size-3.5" /> New
-          </Button>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#ededee] px-5 py-3 sm:px-6">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className="flex h-8 items-center gap-2 rounded-full border border-[#dedee0] bg-[#f7f7f8] px-3 text-[12px] font-medium text-[#3d3d40]"
-            onClick={() => notify("Showing all workspace items")}
-          >
-            All workspace <ChevronDown className="size-3.5 text-[#88888c]" />
-          </button>
-          <span className="hidden text-[12px] text-[#a2a2a5] sm:inline">
-            24 items
-          </span>
-        </div>
+        <button
+          type="button"
+          aria-label="Search workspace"
+          className="flex size-8 items-center justify-center rounded-lg text-[#89898c] hover:bg-[#f0f0f1] hover:text-[#454548]"
+          onClick={openSearch}
+        >
+          <Search className="size-[17px]" strokeWidth={1.8} />
+        </button>
       </div>
 
       <div className="border-b border-[#ededee] px-5 py-5 sm:px-6">
-        <div className="mb-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="size-2 rounded-full bg-[#5db886]" />
-            <h2 className="text-[12px] font-semibold text-[#4b4b4e]">
-              Happening now
-            </h2>
+        <SectionHeader
+          title="My tasks"
+          hint={tasks.length > 0 ? `${tasks.length} open` : undefined}
+          actionLabel="View all"
+          onAction={() => navigate("/tasks")}
+        />
+        {tasks.length === 0 ? (
+          <EmptyState
+            message="No open tasks. You're all caught up."
+            actionLabel="Create a task"
+            onAction={() => navigate("/tasks")}
+          />
+        ) : (
+          <div className="divide-y divide-[#eeeeef]">
+            {tasks.map((task) => (
+              <TaskRow
+                key={task.id}
+                task={task}
+                now={now}
+                onClick={() => navigate(`/tasks?task=${task.id}`)}
+              />
+            ))}
           </div>
-          <span className="text-[11px] text-[#a0a0a3]">
-            Saturday, August 15
-          </span>
-        </div>
-        <div className="flex flex-col gap-4 rounded-lg border border-[#e6e6e7] bg-[#fbfbfc] px-4 py-3.5 sm:flex-row sm:items-center">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#e4f3e9] text-[#56a878]">
-            <Video className="size-[17px]" strokeWidth={1.8} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] font-semibold text-[#363639]">
-              Weekly product sync
-            </p>
-            <p className="mt-1 text-[11px] text-[#8f8f93]">
-              Maya is sharing the latest launch notes · 6 participants
-            </p>
+        )}
+      </div>
+
+      <div className="border-b border-[#ededee] px-5 py-5 sm:px-6">
+        <SectionHeader
+          title="Today's meetings"
+          hint={meetings.length > 0 ? `${meetings.length} upcoming` : undefined}
+          actionLabel="Open calendar"
+          onAction={() => navigate("/calls")}
+        />
+        {meetings.length === 0 ? (
+          <EmptyState
+            message="Nothing scheduled for today."
+            actionLabel="Schedule a meeting"
+            onAction={() => navigate("/calls")}
+          />
+        ) : (
+          <div className="flex flex-col gap-2.5">
+            {meetings.map((meeting) => (
+              <MeetingRow
+                key={meeting.id}
+                meeting={meeting}
+                now={now}
+                onJoin={() => {
+                  navigate("/calls");
+                  notify(`Joining ${meeting.title}`);
+                }}
+              />
+            ))}
           </div>
-          <span className="text-[11px] text-[#8f8f93]">Started 18 min ago</span>
-          <Button
-            className="h-8 rounded-lg bg-[#f0f0f1] px-3 text-[12px] font-medium text-[#3e3e41] hover:bg-[#e5e5e6]"
-            onClick={() => {
-              navigate("/calls");
-              notify("Joining Weekly product sync");
-            }}
-          >
-            Join
-          </Button>
-        </div>
+        )}
       </div>
 
       <div className="px-5 py-5 sm:px-6">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-[12px] font-semibold text-[#4b4b4e]">Recent</h2>
-          <button
-            type="button"
-            className="text-[11px] text-[#8d8d91] hover:text-[#47474a]"
-            onClick={() => navigate("/files")}
-          >
-            View all
-          </button>
-        </div>
-        <div className="hidden grid-cols-[minmax(250px,1.6fr)_0.8fr_0.8fr_32px] gap-4 border-b border-[#eeeeef] px-3 pb-2 text-[10px] font-medium uppercase tracking-[0.06em] text-[#a1a1a4] sm:grid">
-          <span>Name</span>
-          <span>Type</span>
-          <span>Updated</span>
-          <span />
-        </div>
-        <div className="divide-y divide-[#eeeeef]">
-          <WorkspaceRow
-            icon={FileText}
-            name="Q3 product brief"
-            description="Launch planning and product updates"
-            type="Document"
-            updated="18 min ago"
-            onClick={() => {
-              navigate("/files");
-              notify("Opening Q3 product brief");
-            }}
+        <SectionHeader
+          title="Recent files"
+          actionLabel="View all"
+          onAction={() => navigate("/files")}
+        />
+        {files.length === 0 ? (
+          <EmptyState
+            message="No files yet. Uploads will appear here."
+            actionLabel="Open files"
+            onAction={() => navigate("/files")}
           />
-          <WorkspaceRow
-            icon={Image}
-            name="Launch moodboard"
-            description="18 images · Shared with product"
-            type="Images"
-            updated="Yesterday"
-            onClick={() => {
-              navigate("/files");
-              notify("Opening Launch moodboard");
-            }}
-          />
-          <WorkspaceRow
-            icon={MessageCircle}
-            name="# product"
-            description="3 unread messages · Maya, Jordan, Priya"
-            type="Channel"
-            updated="Yesterday"
-            onClick={() => {
-              navigate("/messages");
-              notify("Opening # product");
-            }}
-          />
-          <WorkspaceRow
-            icon={Table2}
-            name="Sprint planning"
-            description="Planning notes and assigned work"
-            type="Spreadsheet"
-            updated="Aug 14"
-            onClick={() => {
-              navigate("/files");
-              notify("Opening Sprint planning");
-            }}
-          />
-        </div>
-      </div>
-
-      <div className="border-t border-[#ededee] px-5 py-4 sm:px-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-[12px] font-semibold text-[#4b4b4e]">
-              Upcoming
-            </h2>
-            <p className="mt-1 text-[11px] text-[#9a9a9d]">
-              The next moments on your calendar.
-            </p>
+        ) : (
+          <div className="divide-y divide-[#eeeeef]">
+            {files.map((file) => (
+              <FileRow
+                key={file.id}
+                file={file}
+                now={now}
+                onClick={() => navigate("/files")}
+              />
+            ))}
           </div>
-          <button
-            type="button"
-            className="text-[11px] text-[#8d8d91] hover:text-[#47474a]"
-            onClick={() => navigate("/calls")}
-          >
-            Open calendar
-          </button>
-        </div>
-        <div className="mt-3 grid gap-2 md:grid-cols-3">
-          <UpcomingRow
-            time="1:00 PM"
-            title="Design critique"
-            detail="Product design · 45 min"
-            onClick={() => navigate("/calls")}
-          />
-          <UpcomingRow
-            time="3:30 PM"
-            title="Customer research"
-            detail="Research · 30 min"
-            onClick={() => navigate("/calls")}
-          />
-          <UpcomingRow
-            time="Tomorrow"
-            title="All-hands meeting"
-            detail="Everyone · 9:00 AM"
-            onClick={() => navigate("/calls")}
-          />
-        </div>
+        )}
       </div>
     </section>
   );
 }
 
-function WorkspaceRow({
-  icon: Icon,
-  name,
-  description,
-  type,
-  updated,
+function SectionHeader({
+  title,
+  hint,
+  actionLabel,
+  onAction,
+}: {
+  title: string;
+  hint?: string;
+  actionLabel: string;
+  onAction: () => void;
+}) {
+  return (
+    <div className="mb-3 flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <h2 className="text-[12px] font-semibold text-[#4b4b4e]">{title}</h2>
+        {hint ? (
+          <span className="rounded-full bg-[#f0f0f1] px-2 py-0.5 text-[10px] font-medium text-[#8f8f93]">
+            {hint}
+          </span>
+        ) : null}
+      </div>
+      <button
+        type="button"
+        className="text-[11px] text-[#8d8d91] hover:text-[#47474a]"
+        onClick={onAction}
+      >
+        {actionLabel}
+      </button>
+    </div>
+  );
+}
+
+function EmptyState({
+  message,
+  actionLabel,
+  onAction,
+}: {
+  message: string;
+  actionLabel: string;
+  onAction: () => void;
+}) {
+  return (
+    <div className="flex flex-col items-start gap-2.5 rounded-lg border border-dashed border-[#e3e3e5] bg-[#fbfbfc] px-4 py-5">
+      <p className="text-[12px] text-[#8f8f93]">{message}</p>
+      <button
+        type="button"
+        className="text-[11px] font-medium text-[#535dc9] hover:text-[#3d47a8]"
+        onClick={onAction}
+      >
+        {actionLabel} →
+      </button>
+    </div>
+  );
+}
+
+function TaskRow({
+  task,
+  now,
   onClick,
 }: {
-  icon: typeof FileText;
-  name: string;
-  description: string;
-  type: string;
-  updated: string;
+  task: HomeTaskItem;
+  now: Date;
   onClick: () => void;
 }) {
+  const status = STATUS_META[task.status];
+  const due = task.dueDate ? dueLabel(task.dueDate, now) : null;
   return (
     <button
       type="button"
-      className="grid w-full grid-cols-1 gap-2 px-3 py-3 text-left transition-colors hover:bg-[#fafafa] sm:grid-cols-[minmax(250px,1.6fr)_0.8fr_0.8fr_32px] sm:items-center sm:gap-4"
+      className="flex w-full items-center gap-3 px-1 py-2.5 text-left transition-colors hover:bg-[#fafafa]"
       onClick={onClick}
     >
-      <span className="flex min-w-0 items-center gap-3">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#f0f0f1] text-[#858589]">
-          <Icon className="size-4" strokeWidth={1.7} />
-        </span>
-        <span className="min-w-0">
-          <span className="block truncate text-[13px] font-medium text-[#3d3d40]">
-            {name}
-          </span>
-          <span className="mt-0.5 block truncate text-[11px] text-[#98989b] sm:hidden">
-            {description}
-          </span>
-        </span>
+      <span
+        className="size-2 shrink-0 rounded-full"
+        style={{
+          backgroundColor: task.projectColor ?? "#c9c9cd",
+        }}
+      />
+      <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[#3d3d40]">
+        {task.title}
       </span>
-      <span className="hidden text-[12px] text-[#77777b] sm:block">{type}</span>
-      <span className="hidden text-[12px] text-[#8f8f93] sm:block">
-        {updated}
+      <span
+        className={`hidden shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium sm:inline ${status.text} ${status.bg}`}
+      >
+        {status.label}
       </span>
-      <ArrowUpRight className="hidden size-4 justify-self-end text-[#b0b0b3] sm:block" />
+      {due ? (
+        <span
+          className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+            due === "Overdue"
+              ? "bg-[#fbeae8] text-[#c4453c]"
+              : due === "Today" || due === "Tomorrow"
+                ? "bg-[#e2e9f7] text-[#31518e]"
+                : "bg-[#f1f1f3] text-[#8f8f93]"
+          }`}
+        >
+          {due}
+        </span>
+      ) : null}
+      <ArrowUpRight className="hidden size-4 shrink-0 text-[#b0b0b3] sm:block" />
     </button>
   );
 }
 
-function UpcomingRow({
-  time,
-  title,
-  detail,
+function MeetingRow({
+  meeting,
+  now,
+  onJoin,
+}: {
+  meeting: MeetingSummary;
+  now: Date;
+  onJoin: () => void;
+}) {
+  const isLive = meeting.status === "live";
+  const participants = meeting.members.length;
+  const startedMinAgo = Math.max(
+    0,
+    Math.floor((now.getTime() - meeting.startsAt) / 60_000),
+  );
+  const timeText = isLive
+    ? "Live now"
+    : meeting.startsAt <= now.getTime()
+      ? `Started ${startedMinAgo} min ago`
+      : timeLabel(meeting.startsAt);
+
+  return (
+    <div className="flex items-center gap-3.5 rounded-lg border border-[#e6e6e7] bg-[#fbfbfc] px-4 py-3">
+      <span
+        className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${
+          isLive ? "bg-[#e4f3e9] text-[#56a878]" : "bg-[#f0f0f1] text-[#7d8494]"
+        }`}
+      >
+        <Video className="size-[17px]" strokeWidth={1.8} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[13px] font-semibold text-[#363639]">
+          {meeting.title}
+        </p>
+        <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-[#8f8f93]">
+          {isLive ? (
+            <span className="size-1.5 rounded-full bg-[#56a878]" />
+          ) : null}
+          <span className="truncate">
+            {timeText} · {participants} participant
+            {participants === 1 ? "" : "s"}
+          </span>
+        </p>
+      </div>
+      {meeting.members.length > 0 ? (
+        <div className="hidden -space-x-1.5 sm:flex">
+          {meeting.members.slice(0, 4).map((member) => (
+            <span
+              key={member.id}
+              className="flex size-6 items-center justify-center rounded-full border-2 border-white text-[8px] font-semibold text-[#514e9a]"
+              style={{ backgroundColor: member.color }}
+            >
+              {member.initials}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      <Button
+        className={`h-8 rounded-lg px-3 text-[12px] font-medium ${
+          isLive
+            ? "bg-[#e4f3e9] text-[#3d7a5a] hover:bg-[#d8ecdf]"
+            : "bg-[#f0f0f1] text-[#3e3e41] hover:bg-[#e5e5e6]"
+        }`}
+        onClick={onJoin}
+      >
+        {isLive ? "Join live" : "Join"}
+      </Button>
+    </div>
+  );
+}
+
+function FileRow({
+  file,
+  now,
   onClick,
 }: {
-  time: string;
-  title: string;
-  detail: string;
+  file: FileItem;
+  now: Date;
   onClick: () => void;
 }) {
+  const kind = KIND_META[kindFor(file)];
+  const Icon = kind.icon;
   return (
     <button
       type="button"
-      className="rounded-lg border border-[#e8e8e9] bg-[#fbfbfc] px-3 py-3 text-left transition-colors hover:border-[#d8d8db] hover:bg-[#f6f6f7]"
+      className="flex w-full items-center gap-3 px-1 py-2.5 text-left transition-colors hover:bg-[#fafafa]"
       onClick={onClick}
     >
-      <p className="text-[10px] font-medium text-[#9a9a9d]">{time}</p>
-      <p className="mt-1 text-[12px] font-medium text-[#4d4d50]">{title}</p>
-      <p className="mt-1 text-[10px] text-[#9a9a9d]">{detail}</p>
+      <span
+        className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${kind.tone}`}
+      >
+        <Icon className="size-4" strokeWidth={1.7} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[13px] font-medium text-[#3d3d40]">
+          {file.name}
+        </span>
+        <span className="mt-0.5 block truncate text-[11px] text-[#98989b] sm:hidden">
+          {kind.label} · {formatBytes(file.size)} ·{" "}
+          {whenLabel(file.createdAt, now)}
+        </span>
+      </span>
+      <span className="hidden text-[12px] text-[#77777b] sm:block">
+        {kind.label}
+      </span>
+      <span className="hidden text-[12px] text-[#8f8f93] sm:block">
+        {formatBytes(file.size)}
+      </span>
+      <span className="hidden text-[12px] text-[#8f8f93] sm:block">
+        {whenLabel(file.createdAt, now)}
+      </span>
+      <ArrowUpRight className="hidden size-4 shrink-0 text-[#b0b0b3] sm:block" />
     </button>
   );
 }

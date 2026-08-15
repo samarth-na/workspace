@@ -5,9 +5,7 @@ import { useRef, useState } from "react";
 const DRAG_THRESHOLD = 5;
 
 function dropIdAt(x: number, y: number): string | null {
-  const el = document
-    .elementFromPoint(x, y)
-    ?.closest("[data-drop-id]");
+  const el = document.elementFromPoint(x, y)?.closest("[data-drop-id]");
   return el?.getAttribute("data-drop-id") ?? null;
 }
 

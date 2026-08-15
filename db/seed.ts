@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
-
+import { hashPassword } from "better-auth/crypto";
 import { and, desc, eq } from "drizzle-orm";
-
 import { db } from "@/db";
 import {
   conversation,
@@ -10,8 +9,16 @@ import {
   messageReaction,
 } from "@/db/chat";
 import { meeting, meetingMember } from "@/db/meetings";
-import { user } from "@/db/schema";
-import { project, task, type taskPriority, type taskStatus } from "@/db/tasks";
+import { account, user } from "@/db/schema";
+import {
+  notification,
+  project,
+  task,
+  taskMention,
+  type taskPriority,
+  type taskStatus,
+} from "@/db/tasks";
+import { workspace, workspaceMember } from "@/db/workspace";
 
 const DEMO_USERS = [
   { id: "u-samarth", email: "samarth@cedar.co", name: "Samarth" },
@@ -20,6 +27,8 @@ const DEMO_USERS = [
   { id: "u-priya", email: "priya@cedar.co", name: "Priya Shah" },
   { id: "u-alex", email: "alex@cedar.co", name: "Alex Morgan" },
 ];
+
+const DEMO_PASSWORD = "password123";
 
 const CHANNELS = [
   {
@@ -242,6 +251,8 @@ const REACTIONS = [
 const summary = {
   usersCreated: 0,
   usersSkipped: 0,
+  accountsCreated: 0,
+  accountsSkipped: 0,
   channelsCreated: 0,
   channelsSkipped: 0,
   membersAdded: 0,
@@ -261,6 +272,11 @@ const summary = {
   meetingsSkipped: 0,
   meetingMembersAdded: 0,
   meetingMembersSkipped: 0,
+  workspacesCreated: 0,
+  workspacesSkipped: 0,
+  workspaceMembersAdded: 0,
+  workspaceMembersSkipped: 0,
+  notificationsAdded: 0,
 };
 
 function minutesAgo(n: number) {
@@ -305,18 +321,40 @@ async function seedUsers() {
       .get();
     if (existing) {
       summary.usersSkipped += 1;
+    } else {
+      await db
+        .insert(user)
+        .values({
+          id: demo.id,
+          name: demo.name,
+          email: demo.email,
+          emailVerified: true,
+        })
+        .onConflictDoNothing();
+      summary.usersCreated += 1;
+    }
+    const credential = await db
+      .select()
+      .from(account)
+      .where(
+        and(eq(account.providerId, "credential"), eq(account.userId, demo.id)),
+      )
+      .get();
+    if (credential) {
+      summary.accountsSkipped += 1;
       continue;
     }
     await db
-      .insert(user)
+      .insert(account)
       .values({
-        id: demo.id,
-        name: demo.name,
-        email: demo.email,
-        emailVerified: true,
+        id: randomUUID(),
+        userId: demo.id,
+        accountId: demo.id,
+        providerId: "credential",
+        password: await hashPassword(DEMO_PASSWORD),
       })
       .onConflictDoNothing();
-    summary.usersCreated += 1;
+    summary.accountsCreated += 1;
   }
 }
 
@@ -338,7 +376,12 @@ async function ensureConversation(
     existing = await db
       .select()
       .from(conversation)
-      .where(eq(conversation.name, name))
+      .where(
+        and(
+          eq(conversation.name, name),
+          eq(conversation.workspaceId, "w-cedar"),
+        ),
+      )
       .get();
     if (existing) {
       convId = existing.id;
@@ -348,7 +391,9 @@ async function ensureConversation(
     if (isChannel) summary.channelsSkipped += 1;
     else summary.dmsSkipped += 1;
   } else {
-    await db.insert(conversation).values({ id, type, name, topic });
+    await db
+      .insert(conversation)
+      .values({ id, type, name, topic, workspaceId: "w-cedar" });
     if (isChannel) summary.channelsCreated += 1;
     else summary.dmsCreated += 1;
   }
@@ -461,6 +506,7 @@ type SeedTask = {
   assigneeId: string;
   dueInDays?: number;
   startInDays?: number;
+  reminderInDays?: number;
 };
 
 const SEED_TASKS: SeedTask[] = [
@@ -475,6 +521,7 @@ const SEED_TASKS: SeedTask[] = [
     assigneeId: "u-maya",
     dueInDays: 2,
     startInDays: -1,
+    reminderInDays: 1,
   },
   {
     id: "task-launch-release-notes",
@@ -496,6 +543,7 @@ const SEED_TASKS: SeedTask[] = [
     projectId: "p-launch",
     assigneeId: "u-jordan",
     dueInDays: 4,
+    reminderInDays: 3,
   },
   {
     id: "task-launch-email-copy",
@@ -549,6 +597,7 @@ const SEED_TASKS: SeedTask[] = [
     projectId: "p-launch",
     assigneeId: "u-samarth",
     dueInDays: 0,
+    reminderInDays: 0,
   },
   {
     id: "task-ds-color-ramp",
@@ -688,10 +737,19 @@ async function seedProjects() {
       .where(eq(project.id, demo.id))
       .get();
     if (existing) {
+      if (!existing.workspaceId) {
+        await db
+          .update(project)
+          .set({ workspaceId: "w-cedar" })
+          .where(eq(project.id, demo.id));
+      }
       summary.projectsSkipped += 1;
       continue;
     }
-    await db.insert(project).values(demo).onConflictDoNothing();
+    await db
+      .insert(project)
+      .values({ ...demo, workspaceId: "w-cedar" })
+      .onConflictDoNothing();
     summary.projectsCreated += 1;
   }
 }
@@ -704,6 +762,16 @@ async function seedTasks() {
       .where(eq(task.id, demo.id))
       .get();
     if (existing) {
+      await db
+        .update(task)
+        .set({
+          workspaceId: "w-cedar",
+          reminderAt:
+            demo.reminderInDays !== undefined
+              ? atTime(daysFromNow(demo.reminderInDays), 9, 0)
+              : null,
+        })
+        .where(eq(task.id, demo.id));
       summary.tasksSkipped += 1;
       continue;
     }
@@ -717,13 +785,120 @@ async function seedTasks() {
         priority: demo.priority,
         projectId: demo.projectId ?? null,
         assigneeId: demo.assigneeId,
+        workspaceId: "w-cedar",
         dueDate:
           demo.dueInDays !== undefined ? daysFromNow(demo.dueInDays) : null,
         startDate:
           demo.startInDays !== undefined ? daysFromNow(demo.startInDays) : null,
+        reminderAt:
+          demo.reminderInDays !== undefined
+            ? atTime(daysFromNow(demo.reminderInDays), 9, 0)
+            : null,
       })
       .onConflictDoNothing();
     summary.tasksCreated += 1;
+  }
+}
+
+async function seedWorkspace(memberIds: string[]) {
+  const existing = await db
+    .select()
+    .from(workspace)
+    .where(eq(workspace.id, "w-cedar"))
+    .get();
+  if (existing) {
+    summary.workspacesSkipped += 1;
+  } else {
+    await db
+      .insert(workspace)
+      .values({ id: "w-cedar", name: "Cedar & Co.", createdBy: "u-samarth" })
+      .onConflictDoNothing();
+    summary.workspacesCreated += 1;
+  }
+  for (const userId of memberIds) {
+    const role = userId === "u-samarth" ? "admin" : "member";
+    const member = await db
+      .select()
+      .from(workspaceMember)
+      .where(
+        and(
+          eq(workspaceMember.workspaceId, "w-cedar"),
+          eq(workspaceMember.userId, userId),
+        ),
+      )
+      .get();
+    if (member) {
+      if (member.role !== role) {
+        await db
+          .update(workspaceMember)
+          .set({ role })
+          .where(
+            and(
+              eq(workspaceMember.workspaceId, "w-cedar"),
+              eq(workspaceMember.userId, userId),
+            ),
+          );
+      }
+      summary.workspaceMembersSkipped += 1;
+      continue;
+    }
+    await db
+      .insert(workspaceMember)
+      .values({ workspaceId: "w-cedar", userId, role })
+      .onConflictDoNothing();
+    summary.workspaceMembersAdded += 1;
+  }
+}
+
+async function seedTaskMentions() {
+  const rows = [
+    { taskId: "task-launch-onboarding", userId: "u-samarth" },
+    { taskId: "task-launch-email-copy", userId: "u-samarth" },
+  ];
+  for (const row of rows) {
+    await db.insert(taskMention).values(row).onConflictDoNothing();
+  }
+}
+
+async function seedNotifications() {
+  const rows = [
+    {
+      id: "notification-seed-onboarding",
+      userId: "u-samarth",
+      type: "mention" as const,
+      actorId: "u-maya",
+      taskId: "task-launch-onboarding",
+      createdAt: minutesAgo(25),
+      readAt: null,
+    },
+    {
+      id: "notification-seed-email-copy",
+      userId: "u-samarth",
+      type: "mention" as const,
+      actorId: "u-priya",
+      taskId: "task-launch-email-copy",
+      createdAt: minutesAgo(130),
+      readAt: null,
+    },
+    {
+      id: "notification-seed-handoff",
+      userId: "u-samarth",
+      type: "assignment" as const,
+      actorId: "u-jordan",
+      taskId: "task-launch-handoff",
+      createdAt: minutesAgo(60),
+      readAt: null,
+    },
+  ];
+  for (const row of rows) {
+    const existing = await db
+      .select()
+      .from(notification)
+      .where(eq(notification.id, row.id))
+      .get();
+    if (existing) continue;
+    await db.insert(notification).values(row).onConflictDoNothing();
+    summary.notificationsAdded += 1;
   }
 }
 
@@ -795,6 +970,12 @@ async function seedMeetings() {
       .where(eq(meeting.id, demo.id))
       .get();
     if (existing) {
+      if (!existing.workspaceId) {
+        await db
+          .update(meeting)
+          .set({ workspaceId: "w-cedar" })
+          .where(eq(meeting.id, demo.id));
+      }
       summary.meetingsSkipped += 1;
       continue;
     }
@@ -806,6 +987,7 @@ async function seedMeetings() {
         description: demo.description,
         status: demo.status,
         hostId: demo.hostId,
+        workspaceId: "w-cedar",
         startsAt: demo.startsAt,
         endsAt: demo.endsAt,
       })
@@ -845,11 +1027,13 @@ async function main() {
 
   await seedUsers();
 
+  const allMemberIds = [...DEMO_USERS.map((d) => d.id), ...preExistingIds];
+  await seedWorkspace(allMemberIds);
   await seedProjects();
   await seedTasks();
+  await seedTaskMentions();
+  await seedNotifications();
   await seedMeetings();
-
-  const allMemberIds = [...DEMO_USERS.map((d) => d.id), ...preExistingIds];
 
   for (const channel of CHANNELS) {
     const conv = await ensureConversation(
@@ -926,6 +1110,12 @@ async function main() {
   }
 
   for (const conv of conversations) {
+    if (!conv.workspaceId) {
+      await db
+        .update(conversation)
+        .set({ workspaceId: "w-cedar" })
+        .where(eq(conversation.id, conv.id));
+    }
     const list = newestTimes[conv.id];
     const updatedAt = list && list.length > 0 ? list[0] : conv.createdAt;
     await db
@@ -937,6 +1127,9 @@ async function main() {
   console.log("Seed summary:");
   console.log(
     `  users: ${summary.usersCreated} created, ${summary.usersSkipped} skipped`,
+  );
+  console.log(
+    `  credentials: ${summary.accountsCreated} created, ${summary.accountsSkipped} skipped`,
   );
   console.log(
     `  channels: ${summary.channelsCreated} created, ${summary.channelsSkipped} skipped`,

@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Flag } from "lucide-react";
+import { AtSign, Bell, Check, Flag, Paperclip } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 import { PRIORITY_META, STATUS_META } from "@/lib/task-meta";
@@ -169,6 +169,46 @@ export function ProjectChip({
         style={{ backgroundColor: color ?? "#b0b6c2" }}
       />
       {name}
+    </span>
+  );
+}
+
+export function TaskIndicators({
+  attachmentCount,
+  reminderAt,
+  mentionCount = 0,
+}: {
+  attachmentCount: number;
+  reminderAt: number | null;
+  mentionCount?: number;
+}) {
+  if (attachmentCount === 0 && reminderAt === null && mentionCount === 0)
+    return null;
+  return (
+    <span className="flex shrink-0 items-center gap-1.5 text-[#a1a8b5]">
+      {attachmentCount > 0 ? (
+        <span
+          className="flex items-center gap-0.5"
+          title={`${attachmentCount} attachment${attachmentCount === 1 ? "" : "s"}`}
+        >
+          <Paperclip className="size-3" />
+          <span className="text-[10px]">{attachmentCount}</span>
+        </span>
+      ) : null}
+      {reminderAt !== null ? (
+        <span title={`Reminder ${new Date(reminderAt).toLocaleString()}`}>
+          <Bell className="size-3" />
+        </span>
+      ) : null}
+      {mentionCount > 0 ? (
+        <span
+          className="flex items-center gap-0.5"
+          title={`${mentionCount} mention${mentionCount === 1 ? "" : "s"}`}
+        >
+          <AtSign className="size-3" />
+          <span className="text-[10px]">{mentionCount}</span>
+        </span>
+      ) : null}
     </span>
   );
 }

@@ -7,12 +7,14 @@ import { conversation, message } from "@/db/chat";
 import { user } from "@/db/schema";
 import {
   aggregateReactions,
+  conversationBelongsToWorkspace,
   fetchReactionRows,
   getSessionUser,
   isMember,
   toChatMessage,
 } from "@/lib/chat-data";
 import type { MessagesResponse } from "@/lib/chat-types";
+import { getSessionWorkspace, previewWorkspaceId } from "@/lib/workspace-data";
 
 export async function GET(
   request: NextRequest,
@@ -30,6 +32,14 @@ export async function GET(
       { error: "Conversation not found" },
       { status: 404 },
     );
+  }
+  const context = await getSessionWorkspace();
+  const workspaceId = context?.workspaceId ?? (await previewWorkspaceId());
+  if (
+    !workspaceId ||
+    !(await conversationBelongsToWorkspace(id, workspaceId))
+  ) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   if (self && !(await isMember(self.id, id))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });

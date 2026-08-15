@@ -14,6 +14,7 @@ import {
 import { auth } from "@/lib/auth";
 import {
   aggregateReactions,
+  conversationBelongsToWorkspace,
   fetchReactionRows,
   isMember,
   type SessionUser,
@@ -30,9 +31,11 @@ import type {
   MeetingPeerState,
   MeetingSignalDescription,
 } from "@/lib/meeting-types";
+import { previewWorkspaceId, workspaceForUser } from "@/lib/workspace-data";
 
 type SocketData = {
   user: SessionUser | null;
+  workspaceId: string | null;
 };
 
 type ClientToServerEvents = {
@@ -141,13 +144,14 @@ const io = new Server<
   Record<string, never>,
   SocketData
 >(httpServer, {
-  cors: { origin: "*" },
+  cors: { origin: true, credentials: true },
 });
 
 io.use(async (socket, next) => {
   try {
     const cookie = socket.handshake.headers.cookie;
     let user: SessionUser | null = null;
+    let workspaceId: string | null = null;
     if (cookie) {
       const session = await auth.api.getSession({
         headers: new Headers({ cookie }),
@@ -158,9 +162,14 @@ io.use(async (socket, next) => {
           name: session.user.name,
           email: session.user.email,
         };
+        workspaceId = (await workspaceForUser(user.id, user.name)).workspaceId;
       }
     }
+    if (!workspaceId) {
+      workspaceId = await previewWorkspaceId();
+    }
     socket.data.user = user;
+    socket.data.workspaceId = workspaceId;
     next();
   } catch (err) {
     console.error("[ws] session validation failed:", err);
@@ -174,10 +183,17 @@ io.on("connection", (socket) => {
 
   socket.on("chat:join", async (payload) => {
     try {
+      const workspaceId = socket.data.workspaceId;
       const ids = payload.conversationIds;
       for (const id of ids) {
         if (typeof id !== "string") continue;
         if (user && !(await isMember(user.id, id))) continue;
+        if (
+          workspaceId &&
+          !(await conversationBelongsToWorkspace(id, workspaceId))
+        ) {
+          continue;
+        }
         await socket.join(roomFor(id));
       }
     } catch (err) {
@@ -217,6 +233,14 @@ io.on("connection", (socket) => {
         .limit(1);
       if (!convRows[0]) {
         fail("Conversation not found");
+        return;
+      }
+      const workspaceId = socket.data.workspaceId;
+      if (
+        workspaceId &&
+        !(await conversationBelongsToWorkspace(conversationId, workspaceId))
+      ) {
+        fail("Forbidden");
         return;
       }
       if (!(await isMember(user.id, conversationId))) {
@@ -288,6 +312,13 @@ io.on("connection", (socket) => {
     if (!user) return;
     const { conversationId, messageId, emoji } = payload;
     try {
+      const workspaceId = socket.data.workspaceId;
+      if (
+        workspaceId &&
+        !(await conversationBelongsToWorkspace(conversationId, workspaceId))
+      ) {
+        return;
+      }
       const msgRows = await db
         .select()
         .from(message)
@@ -350,6 +381,13 @@ io.on("connection", (socket) => {
       if (typeof isTyping !== "boolean") return;
       if (typeof conversationId !== "string" || conversationId.length === 0)
         return;
+      const workspaceId = socket.data.workspaceId;
+      if (
+        workspaceId &&
+        !(await conversationBelongsToWorkspace(conversationId, workspaceId))
+      ) {
+        return;
+      }
       if (!(await isMember(user.id, conversationId))) return;
       socket
         .to(roomFor(conversationId))

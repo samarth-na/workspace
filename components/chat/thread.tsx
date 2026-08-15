@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Smile } from "lucide-react";
+import { ArrowLeft, ListTodo, Smile } from "lucide-react";
 import Link from "next/link";
 import { Fragment, useEffect, useRef, useState } from "react";
 import {
@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 const EMOJI_PALETTE = ["👍", "❤️", "😂", "🎉", "🔥", "👀", "✅", "🚀"];
 
 function Thread({ conversationId }: { conversationId: string }) {
-  const { userName, isSignedIn, notify } = useShell();
+  const { userName, isSignedIn, navigate, notify } = useShell();
   const scrollRef = useRef<HTMLDivElement>(null);
   const messagesRef = useRef<ChatMessage[]>([]);
   const pendingRef = useRef(new Map<string, string>());
@@ -394,7 +394,8 @@ function Thread({ conversationId }: { conversationId: string }) {
             const newDay =
               index > 0 &&
               dayKey(message.createdAt) !== dayKey(previous.createdAt);
-            const grouped = !newDay && previous.sender.id === message.sender.id;
+            const grouped =
+              index > 0 && !newDay && previous.sender.id === message.sender.id;
             return (
               <Fragment key={message.id}>
                 {newDay ? (
@@ -408,6 +409,16 @@ function Thread({ conversationId }: { conversationId: string }) {
                     grouped={grouped}
                     interactive={isSignedIn}
                     onToggleReaction={toggleReaction}
+                    onCreateTask={(message) => {
+                      const title = message.body.trim().slice(0, 100);
+                      const description = conversation?.name
+                        ? `From ${conversation.name}:\n\n${message.body}`
+                        : message.body;
+                      navigate(
+                        `/tasks?draft=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}`,
+                      );
+                      notify("Opening task composer");
+                    }}
                   />
                 </div>
               </Fragment>
@@ -439,11 +450,13 @@ function MessageRow({
   interactive,
   grouped,
   onToggleReaction,
+  onCreateTask,
 }: {
   message: ChatMessage;
   interactive: boolean;
   grouped: boolean;
   onToggleReaction: (messageId: string, emoji: string) => void;
+  onCreateTask: (message: ChatMessage) => void;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
@@ -513,16 +526,27 @@ function MessageRow({
         ) : null}
       </div>
       {interactive ? (
-        <button
-          ref={smileRef}
-          type="button"
-          aria-label="Add reaction"
-          aria-expanded={pickerOpen}
-          className="absolute -top-1 right-0 hidden rounded-md p-1 text-[#9aa1ad] transition-colors group-hover:block hover:bg-[#f2f3f6] hover:text-[#535dc9]"
-          onClick={() => setPickerOpen((open) => !open)}
-        >
-          <Smile className="size-3.5" />
-        </button>
+        <div className="absolute -top-1 right-0 hidden items-center gap-0.5 group-hover:flex">
+          <button
+            type="button"
+            aria-label="Create task from message"
+            title="Create task from message"
+            className="rounded-md p-1 text-[#9aa1ad] transition-colors hover:bg-[#f2f3f6] hover:text-[#535dc9]"
+            onClick={() => onCreateTask(message)}
+          >
+            <ListTodo className="size-3.5" />
+          </button>
+          <button
+            ref={smileRef}
+            type="button"
+            aria-label="Add reaction"
+            aria-expanded={pickerOpen}
+            className="rounded-md p-1 text-[#9aa1ad] transition-colors hover:bg-[#f2f3f6] hover:text-[#535dc9]"
+            onClick={() => setPickerOpen((open) => !open)}
+          >
+            <Smile className="size-3.5" />
+          </button>
+        </div>
       ) : null}
       {pickerOpen ? (
         <div

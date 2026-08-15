@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { NextResponse } from "next/server";
 
@@ -9,6 +9,7 @@ import { user } from "@/db/schema";
 import {
   buildConversationSummary,
   getSessionUser,
+  listConversations,
   type SessionUser,
 } from "@/lib/chat-data";
 import type {
@@ -18,11 +19,18 @@ import type {
   CreateGroupInput,
   CreateGroupResponse,
 } from "@/lib/chat-types";
+import {
+  getSessionWorkspace,
+  previewWorkspaceId,
+  workspaceMemberIds,
+} from "@/lib/workspace-data";
 
 export async function GET() {
   const self = await getSessionUser();
+  const context = await getSessionWorkspace();
+  const workspaceId = context?.workspaceId ?? (await previewWorkspaceId());
   const conversations = await Promise.all(
-    (await listConversations(self?.id ?? null)).map((conv) =>
+    (await listConversations(self?.id ?? null, workspaceId ?? "")).map((conv) =>
       buildConversationSummary(conv, self?.id ?? null),
     ),
   );
@@ -32,40 +40,25 @@ export async function GET() {
   });
 }
 
-async function listConversations(
-  userId: string | null,
-): Promise<(typeof conversation.$inferSelect)[]> {
-  if (userId === null) {
-    return db.select().from(conversation).orderBy(desc(conversation.updatedAt));
-  }
-  const rows = await db
-    .select()
-    .from(conversation)
-    .innerJoin(
-      conversationMember,
-      and(
-        eq(conversationMember.conversationId, conversation.id),
-        eq(conversationMember.userId, userId),
-      ),
-    )
-    .orderBy(desc(conversation.updatedAt));
-  return rows.map((row) => row.conversation);
-}
-
 export async function POST(request: Request) {
   const self = await getSessionUser();
   if (!self) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const context = await getSessionWorkspace();
+  if (!context) {
+    return NextResponse.json({ error: "No workspace" }, { status: 403 });
+  }
   const body = (await request.json()) as CreateDmInput & CreateGroupInput;
   if (typeof body.userId === "string") {
-    return createDmConversation(self, body.userId);
+    return createDmConversation(self, context.workspaceId, body.userId);
   }
-  return createGroupConversation(self, body);
+  return createGroupConversation(self, context.workspaceId, body);
 }
 
 async function createDmConversation(
   self: SessionUser,
+  workspaceId: string,
   peerId: string,
 ): Promise<NextResponse> {
   if (peerId.length === 0) {
@@ -77,12 +70,8 @@ async function createDmConversation(
       { status: 400 },
     );
   }
-  const targets = await db
-    .select()
-    .from(user)
-    .where(eq(user.id, peerId))
-    .limit(1);
-  if (targets.length === 0) {
+  const memberIds = await workspaceMemberIds(workspaceId);
+  if (!memberIds.includes(peerId)) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
   const selfMember = alias(conversationMember, "self_member");
@@ -104,7 +93,12 @@ async function createDmConversation(
         eq(peerMember.userId, peerId),
       ),
     )
-    .where(eq(conversation.type, "dm"))
+    .where(
+      and(
+        eq(conversation.type, "dm"),
+        eq(conversation.workspaceId, workspaceId),
+      ),
+    )
     .limit(1);
   if (existing[0]) {
     return NextResponse.json<CreateDmResponse>({
@@ -114,7 +108,7 @@ async function createDmConversation(
   const conversationId = randomUUID();
   await db
     .insert(conversation)
-    .values({ id: conversationId, type: "dm", name: null });
+    .values({ id: conversationId, type: "dm", name: null, workspaceId });
   await db.insert(conversationMember).values([
     { conversationId, userId: self.id },
     { conversationId, userId: peerId },
@@ -124,6 +118,7 @@ async function createDmConversation(
 
 async function createGroupConversation(
   self: SessionUser,
+  workspaceId: string,
   body: CreateGroupInput,
 ): Promise<NextResponse> {
   const ids = [...new Set(body.userIds ?? [])].filter((id) => id !== self.id);
@@ -136,10 +131,13 @@ async function createGroupConversation(
   if (ids.length > 50) {
     return NextResponse.json({ error: "Too many members" }, { status: 400 });
   }
-  const targets = await db.select().from(user).where(inArray(user.id, ids));
-  if (targets.length !== ids.length) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  const memberIds = await workspaceMemberIds(workspaceId);
+  for (const id of ids) {
+    if (!memberIds.includes(id)) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
   }
+  const targets = await db.select().from(user).where(inArray(user.id, ids));
   const requestedName = typeof body.name === "string" ? body.name.trim() : "";
   const name = (
     requestedName ||
@@ -153,6 +151,7 @@ async function createGroupConversation(
     type: "group",
     name: name || null,
     topic: topic || null,
+    workspaceId,
   });
   await db
     .insert(conversationMember)

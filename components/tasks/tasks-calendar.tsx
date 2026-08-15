@@ -59,8 +59,7 @@ export function TasksCalendar({
     }
     for (const list of map.values()) {
       list.sort(
-        (a, b) =>
-          Number(a.status === "done") - Number(b.status === "done"),
+        (a, b) => Number(a.status === "done") - Number(b.status === "done"),
       );
     }
     return map;
@@ -78,7 +77,9 @@ export function TasksCalendar({
             aria-label="Previous month"
             className="flex size-7 items-center justify-center rounded-lg text-[#8c94a4] transition-colors hover:bg-[#f4f5f8] hover:text-[#414a5d]"
             onClick={() =>
-              setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))
+              setCursor(
+                new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1),
+              )
             }
           >
             <ChevronLeft className="size-4" />
@@ -95,7 +96,9 @@ export function TasksCalendar({
             aria-label="Next month"
             className="flex size-7 items-center justify-center rounded-lg text-[#8c94a4] transition-colors hover:bg-[#f4f5f8] hover:text-[#414a5d]"
             onClick={() =>
-              setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))
+              setCursor(
+                new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1),
+              )
             }
           >
             <ChevronRight className="size-4" />
@@ -131,8 +134,7 @@ export function TasksCalendar({
                 "min-h-[92px] border-b border-r border-[#f1f2f5] p-1.5 transition-colors last:border-r-0",
                 !inMonth && "bg-[#fafbfc]",
                 isWeekend && inMonth && "bg-[#fcfcfd]",
-                isOver &&
-                  "bg-[#eef0ff] ring-1 ring-[#5b64d6]/50 ring-inset",
+                isOver && "bg-[#eef0ff] ring-1 ring-[#5b64d6]/50 ring-inset",
               )}
             >
               <button

@@ -1,7 +1,14 @@
 "use client";
 
-import { FileText, ListTodo, MessageCircle, Upload, Video } from "lucide-react";
-import { requestFilePick } from "@/lib/file-pick";
+import {
+  FileText,
+  FolderPlus,
+  ListTodo,
+  MessageCircle,
+  Upload,
+  Video,
+} from "lucide-react";
+import { requestFilePick, requestNewFolder } from "@/lib/file-pick";
 
 export function CreateMenu({
   onClose,
@@ -48,6 +55,15 @@ export function CreateMenu({
           onClick={() => {
             onNavigate("/files");
             requestFilePick();
+            onClose();
+          }}
+        />
+        <CreateItem
+          icon={FolderPlus}
+          label="New folder"
+          onClick={() => {
+            onNavigate("/files");
+            requestNewFolder();
             onClose();
           }}
         />

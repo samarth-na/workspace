@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { eq, inArray } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { db } from "@/db";
@@ -13,13 +13,25 @@ import type {
   CreateMeetingResponse,
   MeetingsResponse,
 } from "@/lib/meeting-types";
+import {
+  getSessionWorkspace,
+  previewWorkspaceId,
+  workspaceMemberIds,
+} from "@/lib/workspace-data";
 
 export async function GET() {
   const self = await getSessionUser();
-  const meetings = await listMeetings(self?.id ?? null);
+  const context = await getSessionWorkspace();
+  const workspaceId = context?.workspaceId ?? (await previewWorkspaceId());
+  const meetings = await listMeetings(
+    self?.id ?? null,
+    workspaceId,
+    context?.isAdmin ?? false,
+  );
   return NextResponse.json<MeetingsResponse>({
     meetings,
     isPreview: self === null,
+    isAdmin: context?.isAdmin ?? false,
   });
 }
 
@@ -27,6 +39,10 @@ export async function POST(request: Request) {
   const self = await getSessionUser();
   if (!self) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const context = await getSessionWorkspace();
+  if (!context) {
+    return NextResponse.json({ error: "No workspace" }, { status: 403 });
   }
   const body = (await request.json()) as CreateMeetingInput;
   const title = typeof body.title === "string" ? body.title.trim() : "";
@@ -61,11 +77,16 @@ export async function POST(request: Request) {
       )
     : [];
   if (memberIds.length > 0) {
+    const workspaceMembers = await workspaceMemberIds(context.workspaceId);
     const found = await db
       .select({ id: user.id })
       .from(user)
       .where(inArray(user.id, memberIds));
-    const validIds = new Set(found.map((row) => row.id));
+    const validIds = new Set(
+      found
+        .filter((row) => workspaceMembers.includes(row.id))
+        .map((row) => row.id),
+    );
     for (const id of memberIds) {
       if (!validIds.has(id)) {
         return NextResponse.json({ error: "Unknown member" }, { status: 400 });
@@ -79,6 +100,7 @@ export async function POST(request: Request) {
     title,
     description,
     hostId: self.id,
+    workspaceId: context.workspaceId,
     startsAt,
     status: "scheduled",
   });

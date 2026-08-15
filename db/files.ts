@@ -1,23 +1,26 @@
 import { relations, sql } from "drizzle-orm";
 import {
+  type AnySQLiteColumn,
   index,
   integer,
   sqliteTable,
   text,
-  type AnySQLiteColumn,
 } from "drizzle-orm/sqlite-core";
 
 import { user } from "@/db/schema";
+import { workspace } from "@/db/workspace";
 
 export const folder = sqliteTable(
   "folder",
   {
     id: text("id").primaryKey(),
     name: text("name").notNull(),
-    parentId: text("parent_id").references(
-      (): AnySQLiteColumn => folder.id,
-      { onDelete: "cascade" },
-    ),
+    parentId: text("parent_id").references((): AnySQLiteColumn => folder.id, {
+      onDelete: "cascade",
+    }),
+    workspaceId: text("workspace_id").references(() => workspace.id, {
+      onDelete: "cascade",
+    }),
     ownerId: text("owner_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
@@ -25,7 +28,10 @@ export const folder = sqliteTable(
       .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
       .notNull(),
   },
-  (table) => [index("folder_parent_idx").on(table.parentId)],
+  (table) => [
+    index("folder_parent_idx").on(table.parentId),
+    index("folder_workspace_idx").on(table.workspaceId),
+  ],
 );
 
 export const file = sqliteTable(
@@ -39,6 +45,9 @@ export const file = sqliteTable(
     folderId: text("folder_id").references(() => folder.id, {
       onDelete: "cascade",
     }),
+    workspaceId: text("workspace_id").references(() => workspace.id, {
+      onDelete: "cascade",
+    }),
     uploaderId: text("uploader_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
@@ -49,6 +58,7 @@ export const file = sqliteTable(
   (table) => [
     index("file_createdAt_idx").on(table.createdAt),
     index("file_folder_idx").on(table.folderId),
+    index("file_workspace_idx").on(table.workspaceId),
   ],
 );
 

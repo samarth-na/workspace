@@ -12,13 +12,16 @@ import {
   fetchTasks,
   fetchWorkspaceUsers,
 } from "@/lib/tasks-data";
+import { getSessionWorkspace, previewWorkspaceId } from "@/lib/workspace-data";
 
 export async function GET() {
   const self = await getSessionUser();
+  const context = await getSessionWorkspace();
+  const workspaceId = context?.workspaceId ?? (await previewWorkspaceId());
   const [tasks, projects, users] = await Promise.all([
-    fetchTasks(),
-    fetchProjects(),
-    fetchWorkspaceUsers(),
+    fetchTasks(workspaceId),
+    fetchProjects(workspaceId),
+    fetchWorkspaceUsers(workspaceId),
   ]);
   return NextResponse.json<TasksResponse>({
     tasks,
@@ -32,6 +35,10 @@ export async function POST(request: Request) {
   const self = await getSessionUser();
   if (!self) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const context = await getSessionWorkspace();
+  if (!context) {
+    return NextResponse.json({ error: "No workspace" }, { status: 403 });
   }
   let input: CreateTaskInput;
   try {
@@ -49,6 +56,22 @@ export async function POST(request: Request) {
   if (title.length > 200) {
     return NextResponse.json({ error: "title is too long" }, { status: 400 });
   }
-  const task = await createTask({ ...input, title }, self.id);
+  if (input.assigneeId) {
+    const users = await fetchWorkspaceUsers(context.workspaceId);
+    if (!users.some((u) => u.id === input.assigneeId)) {
+      return NextResponse.json({ error: "Unknown assignee" }, { status: 400 });
+    }
+  }
+  if (input.projectId) {
+    const projects = await fetchProjects(context.workspaceId);
+    if (!projects.some((p) => p.id === input.projectId)) {
+      return NextResponse.json({ error: "Unknown project" }, { status: 400 });
+    }
+  }
+  const task = await createTask(
+    { ...input, title },
+    self.id,
+    context.workspaceId,
+  );
   return NextResponse.json<CreateTaskResponse>({ task });
 }

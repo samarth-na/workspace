@@ -7,15 +7,11 @@ import {
   PriorityFlag,
   ProjectChip,
   priorityRank,
+  TaskIndicators,
 } from "@/components/tasks/task-bits";
 import { useDragDrop } from "@/components/tasks/use-drag-drop";
 import { STATUS_META, STATUS_ORDER } from "@/lib/task-meta";
-import type {
-  CreateTaskInput,
-  Task,
-  TaskStatus,
-  UpdateTaskInput,
-} from "@/lib/task-types";
+import type { Task, TaskStatus, UpdateTaskInput } from "@/lib/task-types";
 import { cn } from "@/lib/utils";
 import { dueLabel, isOverdue } from "./task-utils";
 
@@ -59,9 +55,7 @@ export function TasksBoard({
               data-drop-id={`status:${status}`}
               className={cn(
                 "flex w-[248px] shrink-0 flex-col rounded-2xl border bg-[#fafbfc] transition-colors",
-                isOver
-                  ? "border-[#5b64d6] bg-[#f4f5ff]"
-                  : "border-[#e5e7ec]",
+                isOver ? "border-[#5b64d6] bg-[#f4f5ff]" : "border-[#e5e7ec]",
               )}
             >
               <header className="flex items-center gap-2 px-3 pb-2 pt-3">
@@ -69,7 +63,9 @@ export function TasksBoard({
                 <h3 className="text-[12px] font-semibold text-[#4b5568]">
                   {column.label}
                 </h3>
-                <span className="text-[11px] text-[#a1a8b5]">{items.length}</span>
+                <span className="text-[11px] text-[#a1a8b5]">
+                  {items.length}
+                </span>
               </header>
               <div className="flex min-h-[120px] flex-1 flex-col gap-2 px-2 pb-2">
                 {items.map((task) => (
@@ -148,6 +144,11 @@ function BoardCard({
         >
           {task.title}
         </span>
+        <TaskIndicators
+          attachmentCount={task.attachments.length}
+          reminderAt={task.reminderAt}
+          mentionCount={task.mentions.length}
+        />
       </div>
       <div className="mt-2.5 flex items-center gap-2">
         <ProjectChip name={task.projectName} color={task.projectColor} />

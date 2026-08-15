@@ -4,15 +4,16 @@ import { createContext, useContext } from "react";
 
 export type ShellContextValue = {
   userName: string;
+  userImage: string | null;
   isSignedIn: boolean;
+  workspaceName: string;
+  workspaceLogo: string | null;
+  isWorkspaceAdmin: boolean;
   notify: (message: string) => void;
   navigate: (href: string) => void;
-  unread: { inbox: boolean; messages: boolean };
+  unread: { messages: boolean };
   setUnread: (
-    updater: (prev: { inbox: boolean; messages: boolean }) => {
-      inbox: boolean;
-      messages: boolean;
-    },
+    updater: (prev: { messages: boolean }) => { messages: boolean },
   ) => void;
   openSearch: () => void;
   openCreate: () => void;

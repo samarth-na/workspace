@@ -154,9 +154,7 @@ export function TasksTimeline({
     <div className="overflow-hidden rounded-2xl border border-[#e5e7ec] bg-white shadow-[0_2px_7px_rgba(32,41,60,0.025)]">
       <div className="border-b border-[#eff0f3] px-5 py-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-[14px] font-semibold text-[#414a5d]">
-            Timeline
-          </h3>
+          <h3 className="text-[14px] font-semibold text-[#414a5d]">Timeline</h3>
           <p className="text-[12px] text-[#8c94a4]">
             Drag bars to move, drag edges to resize
           </p>
@@ -196,14 +194,17 @@ export function TasksTimeline({
                     {lanes.map((lane) => (
                       <div key={lane[0].id} className="relative h-8">
                         {lane.map((task) => {
-                          if (task.startDate === null || task.dueDate === null) {
+                          if (
+                            task.startDate === null ||
+                            task.dueDate === null
+                          ) {
                             return null;
                           }
                           const eff = effectiveDates(task);
-                          const left = daysBetween(range.start, eff.start) * DAY_WIDTH;
+                          const left =
+                            daysBetween(range.start, eff.start) * DAY_WIDTH;
                           const width =
                             (daysBetween(eff.start, eff.end) + 1) * DAY_WIDTH;
-                          const done = task.status === "done";
                           const isAdjusting =
                             adjust?.taskId === task.id && adjust.shift !== 0;
                           return (
@@ -211,13 +212,13 @@ export function TasksTimeline({
                               key={task.id}
                               className={cn(
                                 "absolute top-1 flex h-6 items-center overflow-hidden rounded-md transition-colors select-none",
-                                isAdjusting && "opacity-80 ring-2 ring-[#5b64d6]/50",
+                                isAdjusting &&
+                                  "opacity-80 ring-2 ring-[#5b64d6]/50",
                               )}
                               style={{
                                 left: left + 2,
                                 width: Math.max(width - 4, 6),
-                                backgroundColor:
-                                  task.projectColor ?? "#b0b6c2",
+                                backgroundColor: task.projectColor ?? "#b0b6c2",
                               }}
                             >
                               <button

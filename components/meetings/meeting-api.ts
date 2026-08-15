@@ -1,6 +1,9 @@
 import type {
   CreateMeetingInput,
   CreateMeetingResponse,
+  MeetingAssigneesInput,
+  MeetingNote,
+  MeetingNotesResponse,
   MeetingResponse,
   MeetingsResponse,
 } from "@/lib/meeting-types";
@@ -54,5 +57,39 @@ export function endMeeting(meetingId: string): Promise<MeetingResponse> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action: "end" }),
+  });
+}
+
+export function startMeeting(meetingId: string): Promise<MeetingResponse> {
+  return request<MeetingResponse>(`/api/meetings/${meetingId}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "start" }),
+  });
+}
+
+export function fetchMeetingNotes(meetingId: string): Promise<MeetingNotesResponse> {
+  return request<MeetingNotesResponse>(`/api/meetings/${meetingId}/notes`);
+}
+
+export function addMeetingNote(
+  meetingId: string,
+  content: string,
+): Promise<{ note: MeetingNote }> {
+  return request<{ note: MeetingNote }>(`/api/meetings/${meetingId}/notes`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
+  });
+}
+
+export function setMeetingAssignees(
+  meetingId: string,
+  input: MeetingAssigneesInput,
+): Promise<MeetingResponse> {
+  return request<MeetingResponse>(`/api/meetings/${meetingId}/assignees`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
   });
 }

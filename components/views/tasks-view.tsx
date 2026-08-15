@@ -1,9 +1,17 @@
 "use client";
 
-import { CalendarDays, ChartGantt, List, ListChecks, Plus } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import {
+  CalendarDays,
+  ChartGantt,
+  List,
+  ListChecks,
+  Plus,
+  SquareKanban,
+} from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useShell } from "@/components/shell/shell-context";
 import { TaskDialog } from "@/components/tasks/task-dialog";
+import { TasksBoard } from "@/components/tasks/tasks-board";
 import { TasksCalendar } from "@/components/tasks/tasks-calendar";
 import { TasksList } from "@/components/tasks/tasks-list";
 import { TasksTimeline } from "@/components/tasks/tasks-timeline";
@@ -14,15 +22,17 @@ import type {
   CreateTaskInput,
   Project,
   Task,
+  TaskStatus,
   TasksResponse,
   UpdateTaskInput,
 } from "@/lib/task-types";
 import { cn } from "@/lib/utils";
 
-type ViewId = "list" | "todo" | "calendar" | "timeline";
+type ViewId = "list" | "board" | "todo" | "calendar" | "timeline";
 
 const VIEWS: { id: ViewId; label: string; icon: typeof List }[] = [
   { id: "list", label: "List", icon: List },
+  { id: "board", label: "Board", icon: SquareKanban },
   { id: "todo", label: "Todo", icon: ListChecks },
   { id: "calendar", label: "Calendar", icon: CalendarDays },
   { id: "timeline", label: "Timeline", icon: ChartGantt },
@@ -32,6 +42,9 @@ type CreateDefaults = {
   dueDate?: number;
   startDate?: number;
   projectId?: string;
+  status?: TaskStatus;
+  title?: string;
+  description?: string;
 };
 
 type DialogState =
@@ -39,7 +52,15 @@ type DialogState =
   | { mode: "edit"; task: Task }
   | null;
 
-export function TasksView() {
+export function TasksView({
+  initialTitle,
+  initialDescription,
+  initialTaskId,
+}: {
+  initialTitle?: string;
+  initialDescription?: string;
+  initialTaskId?: string;
+}) {
   const { notify } = useShell();
   const [view, setView] = useState<ViewId>("list");
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -48,6 +69,8 @@ export function TasksView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dialog, setDialog] = useState<DialogState>(null);
+  const draftOpened = useRef(false);
+  const taskOpened = useRef(false);
 
   const load = useCallback(async () => {
     try {
@@ -67,6 +90,23 @@ export function TasksView() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (draftOpened.current || !initialTitle) return;
+    draftOpened.current = true;
+    setDialog({
+      mode: "create",
+      defaults: { title: initialTitle, description: initialDescription },
+    });
+  }, [initialDescription, initialTitle]);
+
+  useEffect(() => {
+    if (taskOpened.current || !initialTaskId) return;
+    const task = tasks.find((item) => item.id === initialTaskId);
+    if (!task) return;
+    taskOpened.current = true;
+    setDialog({ mode: "edit", task });
+  }, [initialTaskId, tasks]);
 
   const refresh = useCallback(async () => {
     await load();
@@ -159,6 +199,13 @@ export function TasksView() {
           onUpdate={handleUpdate}
           onOpenEdit={(task) => setDialog({ mode: "edit", task })}
         />
+      ) : activeView.id === "board" ? (
+        <TasksBoard
+          tasks={tasks}
+          onUpdate={handleUpdate}
+          onOpenEdit={(task) => setDialog({ mode: "edit", task })}
+          onOpenCreate={(defaults) => setDialog({ mode: "create", defaults })}
+        />
       ) : activeView.id === "todo" ? (
         <TasksTodo
           tasks={tasks}
@@ -177,6 +224,7 @@ export function TasksView() {
         <TasksTimeline
           tasks={tasks}
           projects={projects}
+          onUpdate={handleUpdate}
           onOpenEdit={(task) => setDialog({ mode: "edit", task })}
           onOpenCreate={(defaults) => setDialog({ mode: "create", defaults })}
         />
@@ -191,6 +239,15 @@ export function TasksView() {
           defaultProjectId={
             dialog.mode === "create" ? dialog.defaults?.projectId : null
           }
+          defaultStatus={
+            dialog.mode === "create" ? dialog.defaults?.status : undefined
+          }
+          defaultTitle={
+            dialog.mode === "create" ? dialog.defaults?.title : undefined
+          }
+          defaultDescription={
+            dialog.mode === "create" ? dialog.defaults?.description : undefined
+          }
           onClose={() => setDialog(null)}
           onSubmit={async (input) => {
             if (dialog.mode === "create") {
@@ -201,6 +258,7 @@ export function TasksView() {
                   input.startDate ?? dialog.defaults?.startDate ?? null,
                 projectId:
                   input.projectId ?? dialog.defaults?.projectId ?? null,
+                status: input.status ?? dialog.defaults?.status ?? "todo",
               });
             } else {
               await handleUpdate(dialog.task.id, input);

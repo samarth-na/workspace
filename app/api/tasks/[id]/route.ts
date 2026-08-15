@@ -1,11 +1,12 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { db } from "@/db";
-import { task } from "@/db/tasks";
+import { notification, task } from "@/db/tasks";
 import { getSessionUser } from "@/lib/chat-data";
 import type { UpdateTaskInput, UpdateTaskResponse } from "@/lib/task-types";
-import { fetchTasks } from "@/lib/tasks-data";
+import { attachFiles, fetchTasks, syncMentions } from "@/lib/tasks-data";
+import { getSessionWorkspace } from "@/lib/workspace-data";
 
 export async function PATCH(
   request: Request,
@@ -15,8 +16,16 @@ export async function PATCH(
   if (!self) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const context = await getSessionWorkspace();
+  if (!context) {
+    return NextResponse.json({ error: "No workspace" }, { status: 403 });
+  }
   const { id } = await params;
-  const existing = await db.select().from(task).where(eq(task.id, id)).limit(1);
+  const existing = await db
+    .select()
+    .from(task)
+    .where(and(eq(task.id, id), eq(task.workspaceId, context.workspaceId)))
+    .limit(1);
   if (existing.length === 0) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
@@ -41,6 +50,8 @@ export async function PATCH(
   if (title.length > 200) {
     return NextResponse.json({ error: "title is too long" }, { status: 400 });
   }
+  const assigneeChanged =
+    input.assigneeId !== undefined && input.assigneeId !== current.assigneeId;
   await db
     .update(task)
     .set({
@@ -67,12 +78,42 @@ export async function PATCH(
             ? new Date(input.startDate)
             : null
           : current.startDate,
+      reminderAt:
+        input.reminderAt !== undefined
+          ? input.reminderAt !== null
+            ? new Date(input.reminderAt)
+            : null
+          : current.reminderAt,
     })
-    .where(eq(task.id, id));
-  const tasks = await fetchTasks();
+    .where(and(eq(task.id, id), eq(task.workspaceId, context.workspaceId)));
+  if (input.mentions !== undefined) {
+    await syncMentions(id, input.mentions, self.id, false, context.workspaceId);
+  }
+  if (input.attachFileIds !== undefined && input.attachFileIds.length > 0) {
+    await attachFiles(id, input.attachFileIds, context.workspaceId);
+  }
+  if (assigneeChanged && input.assigneeId) {
+    await notifyAssignee(id, input.assigneeId, self.id);
+  }
+  const tasks = await fetchTasks(context.workspaceId);
   const updated = tasks.find((t) => t.id === id);
   if (!updated) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
   return NextResponse.json<UpdateTaskResponse>({ task: updated });
+}
+
+async function notifyAssignee(
+  taskId: string,
+  assigneeId: string,
+  selfId: string,
+) {
+  if (assigneeId === selfId) return;
+  await db.insert(notification).values({
+    id: crypto.randomUUID(),
+    userId: assigneeId,
+    type: "assignment",
+    actorId: selfId,
+    taskId,
+  });
 }

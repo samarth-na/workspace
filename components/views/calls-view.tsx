@@ -11,7 +11,10 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { fetchMeetings } from "@/components/meetings/meeting-api";
+import {
+  endMeeting,
+  fetchMeetings,
+} from "@/components/meetings/meeting-api";
 import { NewMeetingDialog } from "@/components/meetings/new-meeting-dialog";
 import { ViewFrame } from "@/components/shared/view-frame";
 import { useShell } from "@/components/shell/shell-context";
@@ -23,9 +26,11 @@ function CallsView() {
   const { notify } = useShell();
   const router = useRouter();
   const [meetings, setMeetings] = useState<MeetingSummary[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showNewMeeting, setShowNewMeeting] = useState(false);
+  const [pendingEnd, setPendingEnd] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -34,6 +39,7 @@ function CallsView() {
         const data = await fetchMeetings();
         if (cancelled) return;
         setMeetings(data.meetings);
+        setIsAdmin(data.isAdmin);
         setError(null);
       } catch (err) {
         if (cancelled) return;
@@ -67,6 +73,22 @@ function CallsView() {
 
   const join = (meetingId: string) => {
     router.push(`/meeting/${meetingId}`);
+  };
+
+  const end = async (meetingId: string) => {
+    if (pendingEnd) return;
+    setPendingEnd(meetingId);
+    try {
+      const response = await endMeeting(meetingId);
+      setMeetings((prev) =>
+        prev.map((entry) => (entry.id === meetingId ? response.meeting : entry)),
+      );
+      notify("Meeting ended");
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "Could not end meeting");
+    } finally {
+      setPendingEnd(null);
+    }
   };
 
   return (
@@ -105,7 +127,10 @@ function CallsView() {
                     <LiveMeetingCard
                       key={meeting.id}
                       meeting={meeting}
+                      canEnd={isAdmin || meeting.isHost}
+                      busy={pendingEnd === meeting.id}
                       onJoin={() => join(meeting.id)}
+                      onEnd={() => void end(meeting.id)}
                       onMenu={() => notify("Meeting options opened")}
                     />
                   ))}
@@ -174,11 +199,17 @@ function CallsView() {
 
 function LiveMeetingCard({
   meeting,
+  canEnd,
+  busy,
   onJoin,
+  onEnd,
   onMenu,
 }: {
   meeting: MeetingSummary;
+  canEnd: boolean;
+  busy: boolean;
   onJoin: () => void;
+  onEnd: () => void;
   onMenu: () => void;
 }) {
   return (
@@ -204,12 +235,28 @@ function LiveMeetingCard({
       </p>
       <div className="mt-10 flex items-center justify-between">
         <AvatarStack members={meeting.members} />
-        <Button
-          className="h-9 bg-white px-4 text-[12px] font-semibold text-[#2d3855] hover:bg-[#f0f1ff]"
-          onClick={onJoin}
-        >
-          Join call <ArrowUpRight className="size-3.5" />
-        </Button>
+        <div className="flex items-center gap-2">
+          {canEnd ? (
+            <Button
+              className="h-9 bg-white/10 px-4 text-[12px] font-semibold text-white hover:bg-white/20"
+              disabled={busy}
+              onClick={onEnd}
+            >
+              {busy ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Phone className="size-3.5" />
+              )}
+              End
+            </Button>
+          ) : null}
+          <Button
+            className="h-9 bg-white px-4 text-[12px] font-semibold text-[#2d3855] hover:bg-[#f0f1ff]"
+            onClick={onJoin}
+          >
+            Join call <ArrowUpRight className="size-3.5" />
+          </Button>
+        </div>
       </div>
     </div>
   );

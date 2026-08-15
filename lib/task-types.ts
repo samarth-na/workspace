@@ -1,10 +1,20 @@
-import type { taskPriority, taskStatus } from "@/db/tasks";
+import type { notificationType, taskPriority, taskStatus } from "@/db/tasks";
 import type { AvatarUser } from "@/lib/chat-types";
 
 export type { AvatarUser } from "@/lib/chat-types";
 
 export type TaskStatus = (typeof taskStatus)[number];
 export type TaskPriority = (typeof taskPriority)[number];
+export type NotificationType = (typeof notificationType)[number];
+
+export type TaskAttachment = {
+  fileId: string;
+  name: string;
+  size: number;
+  mimeType: string;
+  url: string;
+  createdAt: number;
+};
 
 export type Task = {
   id: string;
@@ -19,6 +29,9 @@ export type Task = {
   assignee: AvatarUser | null;
   dueDate: number | null;
   startDate: number | null;
+  reminderAt: number | null;
+  attachments: TaskAttachment[];
+  mentions: AvatarUser[];
   createdAt: number;
   updatedAt: number;
 };
@@ -44,7 +57,10 @@ export type CreateTaskInput = {
   assigneeId?: string | null;
   dueDate?: number | null;
   startDate?: number | null;
+  reminderAt?: number | null;
   description?: string | null;
+  mentions?: string[];
+  attachFileIds?: string[];
 };
 
 export type CreateTaskResponse = {
@@ -60,8 +76,29 @@ export type UpdateTaskInput = {
   assigneeId?: string | null;
   dueDate?: number | null;
   startDate?: number | null;
+  reminderAt?: number | null;
+  mentions?: string[];
+  attachFileIds?: string[];
 };
 
 export type UpdateTaskResponse = {
   task: Task;
+};
+
+export type AppNotification = {
+  id: string;
+  type: NotificationType;
+  actorId: string;
+  actorName: string;
+  actorColor: string;
+  taskId: string;
+  taskTitle: string;
+  createdAt: number;
+  readAt: number | null;
+};
+
+export type NotificationsResponse = {
+  notifications: AppNotification[];
+  unreadCount: number;
+  isPreview: boolean;
 };

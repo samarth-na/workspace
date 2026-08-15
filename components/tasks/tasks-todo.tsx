@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarClock, Plus } from "lucide-react";
+import { Bell, CalendarClock, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import {
@@ -9,6 +9,7 @@ import {
   ProjectChip,
   priorityRank,
   TaskCheckbox,
+  TaskIndicators,
 } from "@/components/tasks/task-bits";
 import type { CreateTaskInput, Task, UpdateTaskInput } from "@/lib/task-types";
 import { cn } from "@/lib/utils";
@@ -70,6 +71,12 @@ export function TasksTodo({
         />
       </form>
 
+      {tasks.some(
+        (task) => task.reminderAt !== null && task.status !== "done",
+      ) ? (
+        <ReminderSection tasks={tasks} onOpenEdit={onOpenEdit} />
+      ) : null}
+
       <div className="mt-4 space-y-4">
         {groups.map((group) => (
           <GroupSection
@@ -81,6 +88,49 @@ export function TasksTodo({
         ))}
       </div>
     </div>
+  );
+}
+
+function ReminderSection({
+  tasks,
+  onOpenEdit,
+}: {
+  tasks: Task[];
+  onOpenEdit: (task: Task) => void;
+}) {
+  const reminders = tasks
+    .filter((task) => task.reminderAt !== null && task.status !== "done")
+    .sort((a, b) => (a.reminderAt ?? 0) - (b.reminderAt ?? 0));
+  return (
+    <section className="mt-4 overflow-hidden rounded-2xl border border-[#e6e4f4] bg-[#fbfaff] shadow-[0_2px_7px_rgba(32,41,60,0.02)]">
+      <header className="flex items-center gap-2 border-b border-[#eeeef7] px-4 py-2.5">
+        <Bell className="size-3.5 text-[#5b64d6]" />
+        <h3 className="text-[12px] font-semibold text-[#4b5568]">Reminders</h3>
+        <span className="text-[11px] text-[#a1a8b5]">{reminders.length}</span>
+      </header>
+      <div className="divide-y divide-[#eeeef7]">
+        {reminders.map((task) => (
+          <button
+            key={task.id}
+            type="button"
+            className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-white"
+            onClick={() => onOpenEdit(task)}
+          >
+            <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[#414a5d]">
+              {task.title}
+            </span>
+            <span className="shrink-0 text-[11px] text-[#6f78a0]">
+              {new Date(task.reminderAt ?? 0).toLocaleString("en-US", {
+                month: "short",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+              })}
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -213,6 +263,11 @@ function GroupSection({
               >
                 {task.title}
               </span>
+              <TaskIndicators
+                attachmentCount={task.attachments.length}
+                reminderAt={task.reminderAt}
+                mentionCount={task.mentions.length}
+              />
               <ProjectChip name={task.projectName} color={task.projectColor} />
               {task.dueDate ? (
                 <span

@@ -1,12 +1,10 @@
 "use client";
 
-import { Bell, Command, Plus, Search } from "lucide-react";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { getInitials, useShell } from "./shell-context";
+import { Command, Search } from "lucide-react";
+import { Avatar } from "@/components/shared/avatar";
+import { useShell } from "./shell-context";
 
 function breadcrumbLabel(pathname: string) {
-  if (pathname === "/inbox" || pathname.startsWith("/inbox/")) return "Inbox";
   if (pathname === "/messages" || pathname.startsWith("/messages/")) return "";
   if (pathname === "/files" || pathname.startsWith("/files/")) return "Files";
   if (pathname === "/tasks" || pathname.startsWith("/tasks/")) return "Tasks";
@@ -16,10 +14,6 @@ function breadcrumbLabel(pathname: string) {
   return "Home";
 }
 
-function isInboxPath(pathname: string) {
-  return pathname === "/inbox" || pathname.startsWith("/inbox/");
-}
-
 export function Header({
   pathname,
   onOpenMobileSidebar,
@@ -27,9 +21,7 @@ export function Header({
   pathname: string;
   onOpenMobileSidebar: () => void;
 }) {
-  const { userName, unread, openSearch, openCreate, toggleProfile } =
-    useShell();
-  const hasUnreadInbox = unread.inbox && !isInboxPath(pathname);
+  const { userName, userImage, openSearch, toggleProfile } = useShell();
   const label = breadcrumbLabel(pathname);
 
   return (
@@ -73,36 +65,18 @@ export function Header({
         >
           <Search className="size-[17px]" />
         </button>
-        <Link
-          href="/inbox"
-          aria-label="Open inbox"
-          className="relative flex size-8 items-center justify-center rounded-lg text-[#7f8797] hover:bg-white"
-        >
-          <Bell className="size-[16px]" strokeWidth={1.8} />
-          {hasUnreadInbox ? (
-            <span className="absolute right-[7px] top-[6px] size-1.5 rounded-full bg-[#6873dc] ring-2 ring-[#f7f8fa]" />
-          ) : null}
-        </Link>
+
         <button
           type="button"
-          aria-label="Create new"
-          className="flex size-8 items-center justify-center rounded-lg bg-[#5b64d6] text-white shadow-[0_3px_9px_rgba(91,100,214,0.2)] hover:bg-[#4e57c5] sm:hidden"
-          onClick={openCreate}
-        >
-          <Plus className="size-4" />
-        </button>
-        <Button
-          className="hidden h-8 rounded-lg bg-[#5b64d6] px-3 text-[12px] font-semibold shadow-[0_3px_9px_rgba(91,100,214,0.2)] hover:bg-[#4e57c5] sm:flex"
-          onClick={openCreate}
-        >
-          <Plus className="size-3.5" /> New
-        </Button>
-        <button
-          type="button"
-          className="flex size-8 items-center justify-center rounded-full bg-[#d9d6f4] text-[10px] font-semibold text-[#514e9a]"
+          aria-label="Open profile menu"
+          className="flex size-8 items-center justify-center overflow-hidden rounded-full"
           onClick={toggleProfile}
         >
-          {getInitials(userName)}
+          <Avatar
+            src={userImage}
+            name={userName}
+            className="size-8 rounded-full bg-[#d9d6f4] text-[10px] text-[#514e9a]"
+          />
         </button>
       </div>
     </header>

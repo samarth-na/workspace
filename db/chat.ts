@@ -8,20 +8,28 @@ import {
 } from "drizzle-orm/sqlite-core";
 
 import { user } from "@/db/schema";
+import { workspace } from "@/db/workspace";
 
-export const conversation = sqliteTable("conversation", {
-  id: text("id").primaryKey(),
-  type: text("type", { enum: ["dm", "channel", "group"] }).notNull(),
-  name: text("name"),
-  topic: text("topic"),
-  createdAt: integer("created_at", { mode: "timestamp_ms" })
-    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
-    .notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
-    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
-    .$onUpdate(() => /* @__PURE__ */ new Date())
-    .notNull(),
-});
+export const conversation = sqliteTable(
+  "conversation",
+  {
+    id: text("id").primaryKey(),
+    type: text("type", { enum: ["dm", "channel", "group"] }).notNull(),
+    name: text("name"),
+    topic: text("topic"),
+    workspaceId: text("workspace_id").references(() => workspace.id, {
+      onDelete: "cascade",
+    }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [index("conversation_workspace_idx").on(table.workspaceId)],
+);
 
 export const conversationMember = sqliteTable(
   "conversation_member",

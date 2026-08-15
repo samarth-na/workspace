@@ -49,7 +49,10 @@ let socket: ChatSocket | null = null;
 
 export function getChatSocket(): ChatSocket {
   if (socket === null) {
-    socket = io(WS_URL, { autoConnect: true }) as ChatSocket;
+    socket = io(WS_URL, {
+      autoConnect: true,
+      withCredentials: true,
+    }) as ChatSocket;
   }
   return socket;
 }

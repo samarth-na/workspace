@@ -7,7 +7,7 @@ export type MeetingSummary = {
   title: string;
   description: string | null;
   status: MeetingStatus;
-  hostId: string | null;
+  host: AvatarUser | null;
   startsAt: number;
   endsAt: number | null;
   members: AvatarUser[];
@@ -18,6 +18,26 @@ export type MeetingSummary = {
 export type MeetingsResponse = {
   meetings: MeetingSummary[];
   isPreview: boolean;
+  isAdmin: boolean;
+};
+
+export type MeetingNote = {
+  id: string;
+  content: string;
+  author: AvatarUser;
+  createdAt: number;
+};
+
+export type MeetingNotesResponse = {
+  notes: MeetingNote[];
+};
+
+export type MeetingNoteInput = {
+  content: string;
+};
+
+export type MeetingAssigneesInput = {
+  memberIds: string[];
 };
 
 export type MeetingResponse = {

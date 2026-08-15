@@ -4,12 +4,18 @@ import { NextResponse } from "next/server";
 
 import { db } from "@/db";
 import { conversation, conversationMember, message } from "@/db/chat";
-import { getSessionUser, isMember, toChatMessage } from "@/lib/chat-data";
+import {
+  conversationBelongsToWorkspace,
+  getSessionUser,
+  isMember,
+  toChatMessage,
+} from "@/lib/chat-data";
 import {
   MAX_MESSAGE_LENGTH,
   type SendMessageInput,
   type SendMessageResponse,
 } from "@/lib/chat-types";
+import { getSessionWorkspace } from "@/lib/workspace-data";
 
 export async function POST(request: Request) {
   const self = await getSessionUser();
@@ -44,6 +50,16 @@ export async function POST(request: Request) {
       { error: "Conversation not found" },
       { status: 404 },
     );
+  }
+  const context = await getSessionWorkspace();
+  if (
+    !context ||
+    !(await conversationBelongsToWorkspace(
+      input.conversationId,
+      context.workspaceId,
+    ))
+  ) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   if (!(await isMember(self.id, input.conversationId))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });

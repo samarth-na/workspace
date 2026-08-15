@@ -3,7 +3,12 @@ import { NextResponse } from "next/server";
 
 import { db } from "@/db";
 import { conversation, conversationMember } from "@/db/chat";
-import { getSessionUser, isMember } from "@/lib/chat-data";
+import {
+  conversationBelongsToWorkspace,
+  getSessionUser,
+  isMember,
+} from "@/lib/chat-data";
+import { getSessionWorkspace } from "@/lib/workspace-data";
 
 export async function POST(
   _request: Request,
@@ -24,6 +29,13 @@ export async function POST(
       { error: "Conversation not found" },
       { status: 404 },
     );
+  }
+  const context = await getSessionWorkspace();
+  if (
+    !context ||
+    !(await conversationBelongsToWorkspace(id, context.workspaceId))
+  ) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   if (!(await isMember(self.id, id))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });

@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { message, messageReaction } from "@/db/chat";
 import {
   aggregateReactions,
+  conversationBelongsToWorkspace,
   fetchReactionRows,
   getSessionUser,
   isMember,
@@ -13,6 +14,7 @@ import type {
   ToggleReactionInput,
   ToggleReactionResponse,
 } from "@/lib/chat-types";
+import { getSessionWorkspace } from "@/lib/workspace-data";
 
 export async function POST(
   request: Request,
@@ -31,6 +33,16 @@ export async function POST(
   const target = messages[0];
   if (!target) {
     return NextResponse.json({ error: "Message not found" }, { status: 404 });
+  }
+  const context = await getSessionWorkspace();
+  if (
+    !context ||
+    !(await conversationBelongsToWorkspace(
+      target.conversationId,
+      context.workspaceId,
+    ))
+  ) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   if (!(await isMember(self.id, target.conversationId))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });

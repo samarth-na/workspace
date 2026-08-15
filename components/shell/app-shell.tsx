@@ -3,6 +3,7 @@
 import { Check } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { cn } from "@/lib/utils";
 import { CreateMenu } from "./create-menu";
 import { Header } from "./header";
 import { ProfileMenu } from "./profile-menu";
@@ -12,16 +13,24 @@ import { DesktopSidebar, MobileSidebar } from "./sidebar";
 
 export function AppShell({
   userName,
+  userImage,
   isSignedIn,
+  workspaceName,
+  workspaceLogo,
+  isWorkspaceAdmin,
   children,
 }: {
   userName: string;
+  userImage: string | null;
   isSignedIn: boolean;
+  workspaceName: string;
+  workspaceLogo: string | null;
+  isWorkspaceAdmin: boolean;
   children: React.ReactNode;
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [unread, setUnread] = useState({ inbox: true, messages: true });
+  const [unread, setUnread] = useState({ messages: true });
   const [showSearch, setShowSearch] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -71,9 +80,6 @@ export function AppShell({
   }, []);
 
   useEffect(() => {
-    if (pathname === "/inbox" || pathname.startsWith("/inbox/")) {
-      setUnread((prev) => ({ ...prev, inbox: false }));
-    }
     if (pathname === "/messages" || pathname.startsWith("/messages/")) {
       setUnread((prev) => ({ ...prev, messages: false }));
     }
@@ -84,7 +90,11 @@ export function AppShell({
 
   const value = {
     userName,
+    userImage,
     isSignedIn,
+    workspaceName,
+    workspaceLogo,
+    isWorkspaceAdmin,
     notify,
     navigate,
     unread,
@@ -96,7 +106,12 @@ export function AppShell({
 
   return (
     <ShellContext.Provider value={value}>
-      <div className="linear-workspace flex min-h-dvh bg-[var(--bg-base-color)] text-[var(--color-text-secondary)]">
+      <div
+        className={cn(
+          "linear-workspace flex bg-[var(--bg-base-color)] text-[var(--color-text-secondary)]",
+          isMessagesPath ? "h-dvh overflow-hidden" : "min-h-dvh",
+        )}
+      >
         <DesktopSidebar pathname={pathname} unread={unread} />
         {showMobileSidebar ? (
           <div className="fixed inset-0 z-40 lg:hidden">
@@ -151,7 +166,10 @@ export function AppShell({
         {showProfile ? (
           <ProfileMenu
             userName={userName}
+            userImage={userImage}
             isSignedIn={isSignedIn}
+            workspaceName={workspaceName}
+            isWorkspaceAdmin={isWorkspaceAdmin}
             onClose={() => setShowProfile(false)}
           />
         ) : null}

@@ -8,21 +8,29 @@ import {
 } from "drizzle-orm/sqlite-core";
 
 import { user } from "@/db/schema";
+import { workspace } from "@/db/workspace";
 
-export const meeting = sqliteTable("meeting", {
-  id: text("id").primaryKey(),
-  title: text("title").notNull(),
-  description: text("description"),
-  status: text("status", { enum: ["scheduled", "live", "ended"] })
-    .default("scheduled")
-    .notNull(),
-  hostId: text("host_id").references(() => user.id, { onDelete: "set null" }),
-  startsAt: integer("starts_at", { mode: "timestamp_ms" }).notNull(),
-  endsAt: integer("ends_at", { mode: "timestamp_ms" }),
-  createdAt: integer("created_at", { mode: "timestamp_ms" })
-    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
-    .notNull(),
-});
+export const meeting = sqliteTable(
+  "meeting",
+  {
+    id: text("id").primaryKey(),
+    title: text("title").notNull(),
+    description: text("description"),
+    status: text("status", { enum: ["scheduled", "live", "ended"] })
+      .default("scheduled")
+      .notNull(),
+    hostId: text("host_id").references(() => user.id, { onDelete: "set null" }),
+    workspaceId: text("workspace_id").references(() => workspace.id, {
+      onDelete: "cascade",
+    }),
+    startsAt: integer("starts_at", { mode: "timestamp_ms" }).notNull(),
+    endsAt: integer("ends_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .notNull(),
+  },
+  (table) => [index("meeting_workspace_idx").on(table.workspaceId)],
+);
 
 export const meetingMember = sqliteTable(
   "meeting_member",
@@ -43,8 +51,27 @@ export const meetingMember = sqliteTable(
   ],
 );
 
+export const meetingNote = sqliteTable(
+  "meeting_note",
+  {
+    id: text("id").primaryKey(),
+    meetingId: text("meeting_id")
+      .notNull()
+      .references(() => meeting.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    content: text("content").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .notNull(),
+  },
+  (table) => [index("meeting_note_meeting_idx").on(table.meetingId)],
+);
+
 export const meetingRelations = relations(meeting, ({ many, one }) => ({
   members: many(meetingMember),
+  notes: many(meetingNote),
   host: one(user, {
     fields: [meeting.hostId],
     references: [user.id],
@@ -58,6 +85,17 @@ export const meetingMemberRelations = relations(meetingMember, ({ one }) => ({
   }),
   user: one(user, {
     fields: [meetingMember.userId],
+    references: [user.id],
+  }),
+}));
+
+export const meetingNoteRelations = relations(meetingNote, ({ one }) => ({
+  meeting: one(meeting, {
+    fields: [meetingNote.meetingId],
+    references: [meeting.id],
+  }),
+  user: one(user, {
+    fields: [meetingNote.userId],
     references: [user.id],
   }),
 }));

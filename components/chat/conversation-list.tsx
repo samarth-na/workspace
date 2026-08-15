@@ -43,15 +43,6 @@ function ConversationList({
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
-        <button
-          type="button"
-          aria-label="New message or group"
-          title="New message or group"
-          onClick={onNewMessage}
-          className="flex size-6 shrink-0 items-center justify-center rounded-md text-[#8c94a4] transition-colors hover:bg-[#eef0ff] hover:text-[#535dc9]"
-        >
-          <Plus className="size-3.5" />
-        </button>
       </div>
       <div className="workspace-sidebar-scroll min-h-0 flex-1 overflow-y-auto">
         {loading && conversations.length === 0 ? (
@@ -72,6 +63,16 @@ function ConversationList({
           ))
         )}
       </div>
+      <button
+        type="button"
+        aria-label="New message or group"
+        title="New message or group"
+        onClick={onNewMessage}
+        className="mt-2 flex h-9 w-full shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#5b64d6] text-[12px] font-semibold text-white shadow-[0_3px_9px_rgba(91,100,214,0.2)] transition-colors hover:bg-[#4e57c5] active:bg-[#454db8]"
+      >
+        <Plus className="size-3.5" />
+        New message
+      </button>
     </div>
   );
 }

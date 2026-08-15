@@ -1,35 +1,49 @@
 "use client";
 
 import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ChevronRight,
   Download,
-  FileArchive,
-  FileAudio,
-  FileCode,
   FileText,
-  FileVideo,
+  FolderClosed,
+  FolderOpen,
+  FolderPlus,
   Grid2X2,
-  Image as ImageIcon,
-  List,
-  MoreHorizontal,
-  Presentation,
-  Table2,
+  Rows3,
+  Search,
   Trash2,
   UploadCloud,
+  X,
 } from "lucide-react";
 import Image from "next/image";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  FileGlyph,
+  type FileGlyphVariant,
+} from "@/components/files/file-glyphs";
+import { FileMenu, type MenuItemDef } from "@/components/files/file-menu";
+import { MoveDialog, type MoveTarget } from "@/components/files/move-dialog";
+import { PreviewDialog } from "@/components/files/preview-dialog";
 import { ViewFrame } from "@/components/shared/view-frame";
 import { useShell } from "@/components/shell/shell-context";
-import { consumeFilePickRequest } from "@/lib/file-pick";
+import {
+  consumeFilePickRequest,
+  consumeNewFolderRequest,
+} from "@/lib/file-pick";
 import type {
   FileItem,
-  FilesResponse,
+  FolderContentsResponse,
+  FolderItem,
+  FolderPathItem,
   UploadFileResponse,
 } from "@/lib/file-types";
 import { cn } from "@/lib/utils";
 
 type FileTone = "indigo" | "orange" | "green" | "rose";
 type FileKind =
+  | "folder"
   | "image"
   | "pdf"
   | "sheet"
@@ -39,6 +53,13 @@ type FileKind =
   | "audio"
   | "code"
   | "doc";
+type ViewId = "compact" | "grid";
+type SortKey = "name" | "modified" | "type" | "size";
+type SortDir = "asc" | "desc";
+type Entry =
+  | { kind: "folder"; item: FolderItem }
+  | { kind: "file"; item: FileItem };
+type EntryId = { kind: "folder" | "file"; id: string };
 
 const TONES: Record<FileTone, string> = {
   indigo: "bg-[#eef0ff] text-[#6670d5]",
@@ -49,26 +70,35 @@ const TONES: Record<FileTone, string> = {
 
 const KINDS: Record<
   FileKind,
-  { icon: typeof FileText; tone: FileTone; label: string }
+  { glyph: FileGlyphVariant; tone: FileTone; label: string }
 > = {
-  image: { icon: ImageIcon, tone: "orange", label: "Image" },
-  pdf: { icon: FileText, tone: "rose", label: "PDF" },
-  sheet: { icon: Table2, tone: "green", label: "Sheet" },
-  slides: { icon: Presentation, tone: "indigo", label: "Slides" },
-  archive: { icon: FileArchive, tone: "indigo", label: "Archive" },
-  video: { icon: FileVideo, tone: "indigo", label: "Video" },
-  audio: { icon: FileAudio, tone: "indigo", label: "Audio" },
-  code: { icon: FileCode, tone: "indigo", label: "Text" },
-  doc: { icon: FileText, tone: "indigo", label: "Document" },
+  folder: { glyph: "folder", tone: "indigo", label: "Folder" },
+  image: { glyph: "doc", tone: "orange", label: "Image" },
+  pdf: { glyph: "pdf", tone: "rose", label: "PDF" },
+  sheet: { glyph: "sheet", tone: "green", label: "Sheet" },
+  slides: { glyph: "slides", tone: "orange", label: "Slides" },
+  archive: { glyph: "archive", tone: "indigo", label: "Archive" },
+  video: { glyph: "video", tone: "indigo", label: "Video" },
+  audio: { glyph: "audio", tone: "indigo", label: "Audio" },
+  code: { glyph: "code", tone: "indigo", label: "Text" },
+  doc: { glyph: "doc", tone: "indigo", label: "Document" },
 };
+
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: "name", label: "Name" },
+  { key: "modified", label: "Modified" },
+  { key: "type", label: "Type" },
+  { key: "size", label: "Size" },
+];
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
 
-function kindFor(file: FileItem): FileKind {
-  const mime = file.mimeType;
+function kindFor(item: { mimeType?: string; name: string }): FileKind {
+  if (!item.mimeType) return "folder";
+  const mime = item.mimeType;
   if (mime.startsWith("image/")) return "image";
   if (mime === "application/pdf") return "pdf";
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  const ext = item.name.split(".").pop()?.toLowerCase() ?? "";
   if (
     mime.includes("spreadsheet") ||
     ["xls", "xlsx", "csv", "ods"].includes(ext)
@@ -126,25 +156,49 @@ function timeAgo(timestamp: number) {
 }
 
 type UploadTask = { id: string; name: string; progress: number };
+type RenameTarget = { kind: "folder" | "file"; id: string; name: string };
 
 function FilesView() {
   const { notify } = useShell();
+  const [folderId, setFolderId] = useState<string | null>(null);
+  const [crumbs, setCrumbs] = useState<FolderPathItem[]>([]);
+  const [folders, setFolders] = useState<FolderItem[]>([]);
   const [files, setFiles] = useState<FileItem[]>([]);
-  const [grid, setGrid] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isPreview, setIsPreview] = useState(true);
-  const [dragging, setDragging] = useState(false);
+  const [view, setView] = useState<ViewId>("grid");
+  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({
+    key: "modified",
+    dir: "desc",
+  });
+  const [search, setSearch] = useState("");
   const [uploads, setUploads] = useState<UploadTask[]>([]);
-  const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [menuFor, setMenuFor] = useState<EntryId | null>(null);
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<RenameTarget | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [moveTarget, setMoveTarget] = useState<MoveTarget | null>(null);
+  const [allFolders, setAllFolders] = useState<FolderItem[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const newFolderRef = useRef<HTMLInputElement>(null);
   const previewRef = useRef(isPreview);
   previewRef.current = isPreview;
+  const folderIdRef = useRef(folderId);
+  folderIdRef.current = folderId;
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (target: string | null) => {
+    setLoading(true);
     try {
-      const res = await fetch("/api/files");
+      const query = target ? `?folder=${encodeURIComponent(target)}` : "";
+      const res = await fetch(`/api/files${query}`);
       if (!res.ok) throw new Error("Failed to load files");
-      const data = (await res.json()) as FilesResponse;
+      const data = (await res.json()) as FolderContentsResponse;
+      setFolderId(target);
+      setCrumbs(data.path);
+      setFolders(data.folders);
       setFiles(data.files);
       setIsPreview(data.isPreview);
     } finally {
@@ -153,8 +207,17 @@ function FilesView() {
   }, []);
 
   useEffect(() => {
-    load();
+    load(null);
   }, [load]);
+
+  const navigate = useCallback(
+    (target: string | null) => {
+      setSelected(new Set());
+      setMenuFor(null);
+      load(target);
+    },
+    [load],
+  );
 
   const pickFiles = useCallback(() => {
     if (previewRef.current) {
@@ -164,17 +227,38 @@ function FilesView() {
     inputRef.current?.click();
   }, [notify]);
 
+  const beginCreateFolder = useCallback(() => {
+    if (previewRef.current) {
+      notify("Sign in to create folders");
+      return;
+    }
+    setNewFolderName("");
+    setCreatingFolder(true);
+  }, [notify]);
+
   useEffect(() => {
     if (consumeFilePickRequest()) pickFiles();
+    if (consumeNewFolderRequest()) beginCreateFolder();
     window.addEventListener("workspace:pick-files", pickFiles);
-    return () => window.removeEventListener("workspace:pick-files", pickFiles);
-  }, [pickFiles]);
+    window.addEventListener("workspace:new-folder", beginCreateFolder);
+    return () => {
+      window.removeEventListener("workspace:pick-files", pickFiles);
+      window.removeEventListener("workspace:new-folder", beginCreateFolder);
+    };
+  }, [pickFiles, beginCreateFolder]);
+
+  useEffect(() => {
+    if (creatingFolder) {
+      newFolderRef.current?.focus();
+    }
+  }, [creatingFolder]);
 
   const startUpload = useCallback(
     (fileItem: File, taskId: string) => {
       const xhr = new XMLHttpRequest();
       const form = new FormData();
       form.append("file", fileItem);
+      if (folderIdRef.current) form.append("folder", folderIdRef.current);
       xhr.open("POST", "/api/files");
       xhr.upload.onprogress = (event) => {
         if (!event.lengthComputable) return;
@@ -208,12 +292,12 @@ function FilesView() {
   );
 
   const handleFiles = useCallback(
-    (selected: File[]) => {
+    (selectedFiles: File[]) => {
       if (previewRef.current) {
         notify("Sign in to upload files");
         return;
       }
-      for (const fileItem of selected) {
+      for (const fileItem of selectedFiles) {
         if (fileItem.size > MAX_FILE_SIZE) {
           notify(`${fileItem.name} exceeds the 25 MB limit`);
           continue;
@@ -229,30 +313,305 @@ function FilesView() {
     [notify, startUpload],
   );
 
-  const handleDelete = useCallback(
-    async (fileItem: FileItem) => {
+  const commitCreateFolder = useCallback(async () => {
+    const name = newFolderName.trim();
+    setCreatingFolder(false);
+    if (name.length === 0) return;
+    const res = await fetch("/api/folders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, parentId: folderIdRef.current }),
+    });
+    if (!res.ok) {
+      notify("Could not create folder");
+      return;
+    }
+    notify(`Created ${name}`);
+    load(folderIdRef.current);
+  }, [newFolderName, notify, load]);
+
+  const beginRename = useCallback(
+    (entry: Entry) => {
+      if (previewRef.current) {
+        notify("Sign in to rename items");
+        return;
+      }
+      setRenameTarget({
+        kind: entry.kind,
+        id: entry.item.id,
+        name: entry.item.name,
+      });
+      setRenameValue(entry.item.name);
+    },
+    [notify],
+  );
+
+  const commitRename = useCallback(async () => {
+    const target = renameTarget;
+    const name = renameValue.trim();
+    setRenameTarget(null);
+    if (!target || name.length === 0 || name === target.name) return;
+    const path =
+      target.kind === "file"
+        ? `/api/files/${target.id}`
+        : `/api/folders/${target.id}`;
+    const res = await fetch(path, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    if (!res.ok) {
+      notify("Could not rename");
+      return;
+    }
+    if (target.kind === "file") {
+      setFiles((prev) =>
+        prev.map((f) => (f.id === target.id ? { ...f, name } : f)),
+      );
+    } else {
+      setFolders((prev) =>
+        prev.map((f) => (f.id === target.id ? { ...f, name } : f)),
+      );
+      setCrumbs((prev) =>
+        prev.map((c) => (c.id === target.id ? { ...c, name } : c)),
+      );
+    }
+    notify(`Renamed to ${name}`);
+  }, [renameTarget, renameValue, notify]);
+
+  const openMove = useCallback(
+    async (entry: Entry) => {
+      if (previewRef.current) {
+        notify("Sign in to move items");
+        return;
+      }
+      setMoveTarget({
+        kind: entry.kind,
+        id: entry.item.id,
+        name: entry.item.name,
+      });
       try {
-        const res = await fetch(`/api/files/${fileItem.id}`, {
-          method: "DELETE",
-        });
-        if (!res.ok) {
-          notify("Could not delete file");
-          return;
+        const res = await fetch("/api/folders?all=1");
+        if (res.ok) {
+          const data = (await res.json()) as { folders: FolderItem[] };
+          setAllFolders(data.folders);
         }
-        setFiles((prev) => prev.filter((f) => f.id !== fileItem.id));
-        notify(`Deleted ${fileItem.name}`);
       } catch {
-        notify("Could not delete file");
-      } finally {
-        setMenuFor(null);
+        setAllFolders([]);
       }
     },
     [notify],
   );
 
-  const openFile = useCallback((fileItem: FileItem) => {
-    window.open(fileItem.url, "_blank");
+  const commitMove = useCallback(
+    async (destination: string | null) => {
+      const target = moveTarget;
+      if (!target) return;
+      const path =
+        target.kind === "file"
+          ? `/api/files/${target.id}`
+          : `/api/folders/${target.id}`;
+      const body =
+        target.kind === "file"
+          ? { folderId: destination }
+          : { parentId: destination };
+      const res = await fetch(path, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(data?.error ?? "Could not move");
+      }
+      notify(`Moved ${target.name}`);
+      load(folderIdRef.current);
+    },
+    [moveTarget, notify, load],
+  );
+
+  const deleteEntries = useCallback(
+    async (entries: Entry[]) => {
+      if (previewRef.current) {
+        notify("Sign in to delete items");
+        return;
+      }
+      for (const entry of entries) {
+        const path =
+          entry.kind === "file"
+            ? `/api/files/${entry.item.id}`
+            : `/api/folders/${entry.item.id}`;
+        const res = await fetch(path, { method: "DELETE" });
+        if (!res.ok) {
+          notify(`Could not delete ${entry.item.name}`);
+          return;
+        }
+      }
+      setSelected((prev) => {
+        const next = new Set(prev);
+        for (const entry of entries) next.delete(entry.item.id);
+        return next;
+      });
+      if (entries.some((entry) => entry.kind === "file")) {
+        setFiles((prev) => {
+          const ids = new Set(
+            entries.filter((e) => e.kind === "file").map((e) => e.item.id),
+          );
+          return prev.filter((f) => !ids.has(f.id));
+        });
+      }
+      if (entries.some((entry) => entry.kind === "folder")) {
+        const ids = new Set(
+          entries.filter((e) => e.kind === "folder").map((e) => e.item.id),
+        );
+        setFolders((prev) => prev.filter((f) => !ids.has(f.id)));
+      }
+      notify(
+        entries.length > 1
+          ? `Deleted ${entries.length} items`
+          : `Deleted ${entries[0].item.name}`,
+      );
+    },
+    [notify],
+  );
+
+  const [previewId, setPreviewId] = useState<string | null>(null);
+
+  const openEntry = useCallback(
+    (entry: Entry) => {
+      if (entry.kind === "folder") {
+        navigate(entry.item.id);
+      } else if (entry.item.mimeType.startsWith("image/")) {
+        setPreviewId(entry.item.id);
+      } else {
+        window.open(entry.item.url, "_blank");
+      }
+    },
+    [navigate],
+  );
+
+  const toggleSelected = useCallback((id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }, []);
+
+  const filteredFiles = useMemo(() => {
+    if (!search.trim()) return files;
+    const query = search.trim().toLowerCase();
+    return files.filter((f) => f.name.toLowerCase().includes(query));
+  }, [files, search]);
+
+  const filteredFolders = useMemo(() => {
+    if (!search.trim()) return folders;
+    const query = search.trim().toLowerCase();
+    return folders.filter((f) => f.name.toLowerCase().includes(query));
+  }, [folders, search]);
+
+  const sortedFiles = useMemo(() => {
+    const sorted = [...filteredFiles];
+    sorted.sort((a, b) => {
+      let cmp = 0;
+      if (sort.key === "name") {
+        cmp = a.name.localeCompare(b.name);
+      } else if (sort.key === "size") {
+        cmp = a.size - b.size;
+      } else if (sort.key === "type") {
+        cmp =
+          KINDS[kindFor(a)].label.localeCompare(KINDS[kindFor(b)].label) ||
+          a.name.localeCompare(b.name);
+      } else {
+        cmp = a.createdAt - b.createdAt;
+      }
+      return sort.dir === "asc" ? cmp : -cmp;
+    });
+    return sorted;
+  }, [filteredFiles, sort]);
+
+  const entries = useMemo<Entry[]>(() => {
+    const folderEntries: Entry[] = filteredFolders.map((item) => ({
+      kind: "folder",
+      item,
+    }));
+    const fileEntries: Entry[] = sortedFiles.map((item) => ({
+      kind: "file",
+      item,
+    }));
+    return [...folderEntries, ...fileEntries];
+  }, [filteredFolders, sortedFiles]);
+
+  const selectedEntries = useMemo<Entry[]>(() => {
+    const folderById = new Map(folders.map((f) => [f.id, f]));
+    const fileById = new Map(files.map((f) => [f.id, f]));
+    const result: Entry[] = [];
+    for (const id of selected) {
+      const folderItem = folderById.get(id);
+      if (folderItem) {
+        result.push({ kind: "folder", item: folderItem });
+        continue;
+      }
+      const fileItem = fileById.get(id);
+      if (fileItem) result.push({ kind: "file", item: fileItem });
+    }
+    return result;
+  }, [selected, folders, files]);
+
+  const pickSort = useCallback((key: SortKey) => {
+    setSort((prev) =>
+      prev.key === key
+        ? { key, dir: prev.dir === "asc" ? "desc" : "asc" }
+        : { key, dir: key === "name" ? "asc" : "desc" },
+    );
+    setSortMenuOpen(false);
+  }, []);
+
+  const menuItemsFor = useCallback(
+    (entry: Entry): MenuItemDef[] => {
+      const items: MenuItemDef[] = [];
+      if (entry.kind === "file") {
+        items.push({
+          icon: Download,
+          label: "Download",
+          onSelect: () => window.open(entry.item.url, "_blank"),
+        });
+      }
+      items.push(
+        {
+          icon: FileText,
+          label: "Rename",
+          onSelect: () => beginRename(entry),
+        },
+        {
+          icon: FolderOpen,
+          label: "Move to…",
+          onSelect: () => openMove(entry),
+        },
+        {
+          icon: Trash2,
+          label: "Delete",
+          danger: true,
+          onSelect: () => deleteEntries([entry]),
+        },
+      );
+      return items;
+    },
+    [beginRename, openMove, deleteEntries],
+  );
+
+  const previewImages = useMemo(
+    () =>
+      entries.flatMap((entry) =>
+        entry.kind === "file" && entry.item.mimeType.startsWith("image/")
+          ? [entry.item]
+          : [],
+      ),
+    [entries],
+  );
 
   return (
     <ViewFrame
@@ -267,55 +626,130 @@ function FilesView() {
         multiple
         className="hidden"
         onChange={(event) => {
-          const selected = event.target.files;
-          if (selected) handleFiles(Array.from(selected));
+          const selectedFiles = event.target.files;
+          if (selectedFiles) handleFiles(Array.from(selectedFiles));
           event.target.value = "";
         }}
       />
       {/* biome-ignore lint/a11y/noStaticElementInteractions: drop target for drag-and-drop, not keyboard-interactive */}
       <div
         className="relative"
-        onDragOver={(event) => {
-          event.preventDefault();
-          setDragging(true);
-        }}
-        onDragLeave={() => setDragging(false)}
+        onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => {
           event.preventDefault();
-          setDragging(false);
+          if (!event.dataTransfer.types.includes("Files")) return;
           const dropped = Array.from(event.dataTransfer.files);
           if (dropped.length > 0) handleFiles(dropped);
         }}
       >
-        <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-[12px] text-[#8c94a4]">
-            <span className="font-medium text-[#4e576a]">All files</span>
-            <span>/</span>
-            <span>Shared with everyone</span>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-1.5 text-[12px] text-[#8c94a4]">
+            <button
+              type="button"
+              className={cn(
+                "font-medium transition-colors hover:text-[#4e576a]",
+                !folderId ? "text-[#4e576a]" : "",
+              )}
+              onClick={() => navigate(null)}
+            >
+              All files
+            </button>
+            {crumbs.map((crumb) => (
+              <span
+                key={crumb.id}
+                className="flex min-w-0 items-center gap-1.5"
+              >
+                <ChevronRight className="size-3 shrink-0 text-[#c0c6d1]" />
+                <button
+                  type="button"
+                  className="max-w-40 truncate font-medium transition-colors hover:text-[#4e576a]"
+                  onClick={() => navigate(crumb.id)}
+                >
+                  {crumb.name}
+                </button>
+              </span>
+            ))}
           </div>
-          <div className="flex rounded-lg border border-[#e2e4e9] bg-white p-0.5">
+          <div className="flex items-center gap-2">
+            <label className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-[#a1a8b5]" />
+              <input
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search files"
+                aria-label="Search files"
+                className="h-8 w-40 rounded-lg border border-[#e2e4e9] bg-white pl-8 pr-2 text-[12px] text-[#414a5d] outline-none transition placeholder:text-[#a1a8b5] focus:border-[#5b64d6] sm:w-48"
+              />
+            </label>
             <button
               type="button"
-              aria-label="List view"
-              className={cn(
-                "rounded-md p-1.5",
-                !grid ? "bg-[#eef0ff] text-[#5b64d6]" : "text-[#9aa1ad]",
-              )}
-              onClick={() => setGrid(false)}
+              className="flex h-8 items-center gap-1.5 rounded-lg border border-[#e2e4e9] bg-white px-2.5 text-[12px] font-medium text-[#596275] transition-colors hover:bg-[#f6f7f9]"
+              onClick={beginCreateFolder}
             >
-              <List className="size-3.5" />
+              <FolderPlus className="size-3.5 text-[#8b94a5]" />
+              <span className="hidden sm:inline">New folder</span>
             </button>
-            <button
-              type="button"
-              aria-label="Grid view"
-              className={cn(
-                "rounded-md p-1.5",
-                grid ? "bg-[#eef0ff] text-[#5b64d6]" : "text-[#9aa1ad]",
+            <div className="relative">
+              <button
+                type="button"
+                aria-expanded={sortMenuOpen}
+                className="flex h-8 items-center gap-1.5 rounded-lg border border-[#e2e4e9] bg-white px-2.5 text-[12px] font-medium text-[#596275] transition-colors hover:bg-[#f6f7f9]"
+                onClick={() => setSortMenuOpen((prev) => !prev)}
+              >
+                <ArrowUpDown className="size-3.5 text-[#8b94a5]" />
+                <span className="hidden sm:inline">
+                  {SORT_OPTIONS.find((o) => o.key === sort.key)?.label}
+                </span>
+                {sort.dir === "asc" ? (
+                  <ArrowUp className="size-3 text-[#8b94a5]" />
+                ) : (
+                  <ArrowDown className="size-3 text-[#8b94a5]" />
+                )}
+              </button>
+              {sortMenuOpen && (
+                <>
+                  <button
+                    type="button"
+                    aria-label="Close sort menu"
+                    className="fixed inset-0 z-30 cursor-default"
+                    onClick={() => setSortMenuOpen(false)}
+                  />
+                  <div className="absolute right-0 top-9 z-40 w-44 rounded-xl border border-[#e3e5ea] bg-white p-1 shadow-[0_12px_30px_rgba(35,43,66,0.13)]">
+                    {SORT_OPTIONS.map((option) => (
+                      <button
+                        key={option.key}
+                        type="button"
+                        className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-[12px] text-[#596275] hover:bg-[#f4f5f8]"
+                        onClick={() => pickSort(option.key)}
+                      >
+                        {option.label}
+                        {sort.key === option.key &&
+                          (sort.dir === "asc" ? (
+                            <ArrowUp className="size-3.5 text-[#5b64d6]" />
+                          ) : (
+                            <ArrowDown className="size-3.5 text-[#5b64d6]" />
+                          ))}
+                      </button>
+                    ))}
+                  </div>
+                </>
               )}
-              onClick={() => setGrid(true)}
-            >
-              <Grid2X2 className="size-3.5" />
-            </button>
+            </div>
+            <div className="flex rounded-lg border border-[#e2e4e9] bg-white p-0.5">
+              <ViewToggle
+                icon={Rows3}
+                label="List view"
+                active={view === "compact"}
+                onClick={() => setView("compact")}
+              />
+              <ViewToggle
+                icon={Grid2X2}
+                label="Grid view"
+                active={view === "grid"}
+                onClick={() => setView("grid")}
+              />
+            </div>
           </div>
         </div>
 
@@ -344,6 +778,45 @@ function FilesView() {
           </div>
         )}
 
+        {selected.size > 0 && (
+          <div className="mb-3 flex items-center justify-between rounded-xl border border-[#e2e4e9] bg-[#f7f8fd] px-4 py-2">
+            <p className="text-[12px] font-semibold text-[#414a5d]">
+              {selected.size} selected
+            </p>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-[#c04a5d] transition-colors hover:bg-[#fdf0f2]"
+                onClick={() => deleteEntries(selectedEntries)}
+              >
+                <Trash2 className="size-3.5" />
+                Delete
+              </button>
+              <button
+                type="button"
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-[#596275] transition-colors hover:bg-[#eef0f4]"
+                onClick={() => setSelected(new Set())}
+              >
+                <X className="size-3.5" />
+                Clear
+              </button>
+            </div>
+          </div>
+        )}
+
+        {creatingFolder && (
+          <div className="mb-2 flex items-center gap-3 rounded-xl border border-[#5b64d6]/40 bg-white px-4 py-3">
+            <FolderClosed className="size-4 shrink-0 text-[#6670d5]" />
+            <RenameInput
+              value={newFolderName}
+              onChange={setNewFolderName}
+              onCommit={commitCreateFolder}
+              onCancel={() => setCreatingFolder(false)}
+              ref={newFolderRef}
+            />
+          </div>
+        )}
+
         {loading ? (
           <div className="space-y-2">
             {[0, 1, 2, 3].map((i) => (
@@ -353,266 +826,366 @@ function FilesView() {
               />
             ))}
           </div>
-        ) : files.length === 0 ? (
-          <button
-            type="button"
-            onClick={pickFiles}
-            className="flex w-full flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-[#e0e3ea] bg-white px-6 py-14 text-center transition-colors hover:border-[#c8cdd9] hover:bg-[#fafbff]"
-          >
+        ) : entries.length === 0 ? (
+          <div className="flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed border-[#e0e3ea] bg-white px-6 py-14 text-center">
             <UploadCloud className="size-7 text-[#9aa1ad]" strokeWidth={1.5} />
-            <span className="text-[13px] font-semibold text-[#414a5d]">
-              Drop files here to upload
-            </span>
-            <span className="text-[12px] text-[#9aa1ad]">
-              Documents, images, and more — up to 25 MB each
-            </span>
-          </button>
-        ) : grid ? (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {files.map((fileItem) => (
-              <FileCard
-                file={fileItem}
-                key={fileItem.id}
-                menuOpen={menuFor === fileItem.id}
-                onOpenMenu={() => setMenuFor(fileItem.id)}
-                onOpen={openFile}
-                onDelete={handleDelete}
+            <div>
+              <p className="text-[13px] font-semibold text-[#414a5d]">
+                {search.trim()
+                  ? `No matches for “${search.trim()}”`
+                  : "This folder is empty"}
+              </p>
+              <p className="mt-1 text-[12px] text-[#9aa1ad]">
+                Drop files here, or create a folder to organize them.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className="rounded-lg bg-[#5b64d6] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#4e57c5]"
+                onClick={pickFiles}
+              >
+                Upload files
+              </button>
+              <button
+                type="button"
+                className="rounded-lg border border-[#e2e4e9] bg-white px-3 py-2 text-[12px] font-semibold text-[#596275] transition-colors hover:bg-[#f6f7f9]"
+                onClick={beginCreateFolder}
+              >
+                New folder
+              </button>
+            </div>
+          </div>
+        ) : view === "grid" ? (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-1">
+            {entries.map((entry) => (
+              <GridCard
+                key={`${entry.kind}-${entry.item.id}`}
+                entry={entry}
+                preview={isPreview}
+                selected={selected.has(entry.item.id)}
+                menuOpen={
+                  menuFor?.kind === entry.kind && menuFor.id === entry.item.id
+                }
+                menuItems={menuItemsFor(entry)}
+                renaming={
+                  renameTarget?.kind === entry.kind &&
+                  renameTarget.id === entry.item.id
+                }
+                renameValue={renameValue}
+                onRenameChange={setRenameValue}
+                onRenameCommit={commitRename}
+                onRenameCancel={() => setRenameTarget(null)}
+                onOpenMenu={() =>
+                  setMenuFor({ kind: entry.kind, id: entry.item.id })
+                }
+                onOpen={() => openEntry(entry)}
+                onToggleSelect={() => toggleSelected(entry.item.id)}
               />
             ))}
           </div>
         ) : (
           <div className="overflow-hidden rounded-2xl border border-[#e5e7ec] bg-white shadow-[0_2px_7px_rgba(32,41,60,0.025)]">
-            <div className="hidden grid-cols-[minmax(210px,1.4fr)_0.8fr_0.7fr_32px] gap-4 border-b border-[#eff0f3] px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#a0a6b2] sm:grid">
-              <span>Name</span>
-              <span>Type</span>
-              <span>Updated</span>
-              <span />
-            </div>
-            {files.map((fileItem) => (
-              <FileRow
-                file={fileItem}
-                key={fileItem.id}
-                menuOpen={menuFor === fileItem.id}
-                onOpenMenu={() => setMenuFor(fileItem.id)}
-                onOpen={openFile}
-                onDelete={handleDelete}
+            {entries.map((entry) => (
+              <ListRow
+                key={`${entry.kind}-${entry.item.id}`}
+                entry={entry}
+                preview={isPreview}
+                selected={selected.has(entry.item.id)}
+                menuOpen={
+                  menuFor?.kind === entry.kind && menuFor.id === entry.item.id
+                }
+                menuItems={menuItemsFor(entry)}
+                renaming={
+                  renameTarget?.kind === entry.kind &&
+                  renameTarget.id === entry.item.id
+                }
+                renameValue={renameValue}
+                onRenameChange={setRenameValue}
+                onRenameCommit={commitRename}
+                onRenameCancel={() => setRenameTarget(null)}
+                onOpenMenu={() =>
+                  setMenuFor({ kind: entry.kind, id: entry.item.id })
+                }
+                onOpen={() => openEntry(entry)}
+                onToggleSelect={() => toggleSelected(entry.item.id)}
               />
             ))}
           </div>
         )}
-
-        {dragging && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-2xl border-2 border-dashed border-[#5b64d6] bg-[#5b64d6]/5">
-            <p className="flex items-center gap-2 text-[13px] font-semibold text-[#4e57c5]">
-              <UploadCloud className="size-5" /> Drop files to upload
-            </p>
-          </div>
-        )}
       </div>
+
+      {moveTarget && (
+        <MoveDialog
+          target={moveTarget}
+          allFolders={allFolders}
+          onClose={() => setMoveTarget(null)}
+          onMove={commitMove}
+        />
+      )}
+
+      {previewId && (
+        <PreviewDialog
+          images={previewImages}
+          initialId={previewId}
+          onClose={() => setPreviewId(null)}
+        />
+      )}
     </ViewFrame>
   );
 }
 
-function FileRow({
-  file,
-  menuOpen,
-  onOpenMenu,
-  onOpen,
-  onDelete,
-}: {
-  file: FileItem;
-  menuOpen: boolean;
-  onOpenMenu: () => void;
-  onOpen: (file: FileItem) => void;
-  onDelete: (file: FileItem) => void;
-}) {
-  const { icon: Icon, tone, label } = KINDS[kindFor(file)];
-  return (
-    // biome-ignore lint/a11y/useSemanticElements: contains nested interactive menu, button nesting is invalid HTML
-    <div
-      className="grid grid-cols-1 gap-2 border-b border-[#eff0f3] px-4 py-3.5 last:border-b-0 hover:bg-[#fafaff] sm:grid-cols-[minmax(210px,1.4fr)_0.8fr_0.7fr_32px] sm:items-center sm:gap-4 sm:px-5"
-      role="button"
-      tabIndex={0}
-      onClick={() => onOpen(file)}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") onOpen(file);
-      }}
-    >
-      <span className="flex min-w-0 items-center gap-3">
-        <span
-          className={cn(
-            "flex size-8 shrink-0 items-center justify-center rounded-lg",
-            TONES[tone],
-          )}
-        >
-          <Icon className="size-4" strokeWidth={1.8} />
-        </span>
-        <span className="min-w-0">
-          <span className="block truncate text-[13px] font-semibold text-[#414a5d]">
-            {file.name}
-          </span>
-          <span className="mt-0.5 block text-[11px] text-[#a0a6b2] sm:hidden">
-            {label} · {formatBytes(file.size)}
-          </span>
-        </span>
-      </span>
-      <span className="hidden text-[12px] text-[#8f97a6] sm:block">
-        {label} · {formatBytes(file.size)}
-      </span>
-      <span className="hidden text-[12px] text-[#8f97a6] sm:block">
-        {timeAgo(file.createdAt)}
-      </span>
-      <FileMenu
-        open={menuOpen}
-        onToggle={onOpenMenu}
-        onDownload={() => window.open(file.url, "_blank")}
-        onDelete={() => onDelete(file)}
-      />
-    </div>
-  );
-}
-
-function FileCard({
-  file,
-  menuOpen,
-  onOpenMenu,
-  onOpen,
-  onDelete,
-}: {
-  file: FileItem;
-  menuOpen: boolean;
-  onOpenMenu: () => void;
-  onOpen: (file: FileItem) => void;
-  onDelete: (file: FileItem) => void;
-}) {
-  const { icon: Icon, label } = KINDS[kindFor(file)];
-  const isImage = file.mimeType.startsWith("image/");
-  return (
-    // biome-ignore lint/a11y/useSemanticElements: contains nested interactive menu, button nesting is invalid HTML
-    <div
-      role="button"
-      tabIndex={0}
-      className="group relative cursor-pointer rounded-2xl border border-[#e5e7ec] bg-white p-4 text-left shadow-[0_2px_7px_rgba(32,41,60,0.025)] transition hover:-translate-y-0.5 hover:shadow-[0_8px_18px_rgba(32,41,60,0.06)]"
-      onClick={() => onOpen(file)}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") onOpen(file);
-      }}
-    >
-      <span className="relative flex h-28 items-center justify-center overflow-hidden rounded-xl bg-[#f5f6f9]">
-        {isImage ? (
-          <Image
-            src={file.url}
-            alt={file.name}
-            fill
-            sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 25vw"
-            className="object-cover"
-          />
-        ) : (
-          <Icon className="size-8 text-[#8a93a5]" strokeWidth={1.4} />
-        )}
-      </span>
-      <p className="mt-4 truncate text-[13px] font-semibold text-[#414a5d]">
-        {file.name}
-      </p>
-      <p className="mt-1 text-[11px] text-[#9da4b1]">
-        {label} · {formatBytes(file.size)} · {timeAgo(file.createdAt)}
-      </p>
-      <span className="absolute right-3 top-3 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-        <FileMenu
-          open={menuOpen}
-          onToggle={onOpenMenu}
-          onDownload={() => window.open(file.url, "_blank")}
-          onDelete={() => onDelete(file)}
-        />
-      </span>
-    </div>
-  );
-}
-
-function FileMenu({
-  open,
-  onToggle,
-  onDownload,
-  onDelete,
-}: {
-  open: boolean;
-  onToggle: () => void;
-  onDownload: () => void;
-  onDelete: () => void;
-}) {
-  return (
-    <span className="relative flex justify-end">
-      <button
-        type="button"
-        aria-label="More actions"
-        aria-expanded={open}
-        className="rounded-md p-1 text-[#a6acb7] transition-colors hover:bg-[#eef0f4] hover:text-[#596275]"
-        onClick={(event) => {
-          event.stopPropagation();
-          onToggle();
-        }}
-      >
-        <MoreHorizontal className="size-4" />
-      </button>
-      {open && (
-        <>
-          <button
-            type="button"
-            aria-label="Close menu"
-            className="fixed inset-0 z-30 cursor-default"
-            onClick={onToggle}
-          />
-          <div className="absolute right-0 top-9 z-40 w-36 rounded-xl border border-[#e3e5ea] bg-white p-1 shadow-[0_12px_30px_rgba(35,43,66,0.13)]">
-            <MenuAction
-              icon={Download}
-              label="Download"
-              onClick={() => {
-                onToggle();
-                onDownload();
-              }}
-            />
-            <MenuAction
-              icon={Trash2}
-              label="Delete"
-              tone="danger"
-              onClick={() => onDelete()}
-            />
-          </div>
-        </>
-      )}
-    </span>
-  );
-}
-
-function MenuAction({
+function ViewToggle({
   icon: Icon,
   label,
-  tone,
+  active,
   onClick,
 }: {
-  icon: typeof Download;
+  icon: typeof Rows3;
   label: string;
-  tone?: "danger";
+  active: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
+      aria-label={label}
       className={cn(
-        "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[12px] hover:bg-[#f4f5f8]",
-        tone === "danger"
-          ? "text-[#c04a5d] hover:bg-[#fdf0f2]"
-          : "text-[#596275]",
+        "rounded-md p-1.5 transition-colors",
+        active
+          ? "bg-[#eef0ff] text-[#5b64d6]"
+          : "text-[#9aa1ad] hover:text-[#596275]",
       )}
-      onClick={(event) => {
-        event.stopPropagation();
-        onClick();
-      }}
+      onClick={onClick}
     >
-      <Icon className="size-4" strokeWidth={1.8} />
-      {label}
+      <Icon className="size-3.5" />
     </button>
   );
 }
+
+function ListRow({
+  entry,
+  preview,
+  selected,
+  menuOpen,
+  menuItems,
+  renaming,
+  renameValue,
+  onRenameChange,
+  onRenameCommit,
+  onRenameCancel,
+  onOpenMenu,
+  onOpen,
+  onToggleSelect,
+}: {
+  entry: Entry;
+  preview: boolean;
+  selected: boolean;
+  menuOpen: boolean;
+  menuItems: MenuItemDef[];
+  renaming: boolean;
+  renameValue: string;
+  onRenameChange: (value: string) => void;
+  onRenameCommit: () => void;
+  onRenameCancel: () => void;
+  onOpenMenu: () => void;
+  onOpen: () => void;
+  onToggleSelect: () => void;
+}) {
+  const { glyph, tone, label } = KINDS[kindFor(entry.item)];
+  const isFolder = entry.kind === "folder";
+  const meta = isFolder
+    ? `${label} · ${entry.item.childCount} ${entry.item.childCount === 1 ? "item" : "items"}`
+    : `${label} · ${formatBytes(entry.item.size)}`;
+  return (
+    // biome-ignore lint/a11y/useSemanticElements: contains nested interactive menu, button nesting is invalid HTML
+    <div
+      role="button"
+      tabIndex={0}
+      className="grid w-full grid-cols-[20px_24px_1fr_auto_32px] items-center gap-3 border-b border-[#eff0f3] px-4 py-2 last:border-b-0 hover:bg-[#fafaff] sm:px-5"
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.target instanceof HTMLInputElement) return;
+        if (event.key === "Enter" || event.key === " ") onOpen();
+      }}
+    >
+      <input
+        type="checkbox"
+        aria-label={`Select ${entry.item.name}`}
+        checked={selected}
+        onChange={onToggleSelect}
+        onClick={(event) => event.stopPropagation()}
+        className="size-3.5 accent-[#5b64d6]"
+      />
+      <span
+        className={cn(
+          "flex size-6 shrink-0 items-center justify-center rounded-lg",
+          TONES[tone],
+        )}
+      >
+        <FileGlyph variant={glyph} className="size-4" />
+      </span>
+      <span className="flex min-w-0 items-center gap-2 sm:gap-3">
+        <span className="min-w-0">
+          {renaming ? (
+            <RenameInput
+              value={renameValue}
+              onChange={onRenameChange}
+              onCommit={onRenameCommit}
+              onCancel={onRenameCancel}
+            />
+          ) : (
+            <span className="block truncate text-[13px] font-semibold text-[#414a5d]">
+              {entry.item.name}
+            </span>
+          )}
+          <span className="mt-0.5 block text-[11px] text-[#a0a6b2] sm:hidden">
+            {meta}
+          </span>
+        </span>
+      </span>
+      {entry.kind === "file" ? (
+        <span className="truncate text-[12px] text-[#8f97a6]">
+          {formatBytes(entry.item.size)} · {timeAgo(entry.item.createdAt)}
+        </span>
+      ) : (
+        <span className="truncate text-[12px] text-[#8f97a6]">
+          {entry.item.childCount}{" "}
+          {entry.item.childCount === 1 ? "item" : "items"}
+        </span>
+      )}
+      {(!preview || entry.kind === "file") && (
+        <FileMenu open={menuOpen} items={menuItems} onToggle={onOpenMenu} />
+      )}
+    </div>
+  );
+}
+
+function GridCard({
+  entry,
+  preview,
+  selected,
+  menuOpen,
+  menuItems,
+  renaming,
+  renameValue,
+  onRenameChange,
+  onRenameCommit,
+  onRenameCancel,
+  onOpenMenu,
+  onOpen,
+  onToggleSelect,
+}: {
+  entry: Entry;
+  preview: boolean;
+  selected: boolean;
+  menuOpen: boolean;
+  menuItems: MenuItemDef[];
+  renaming: boolean;
+  renameValue: string;
+  onRenameChange: (value: string) => void;
+  onRenameCommit: () => void;
+  onRenameCancel: () => void;
+  onOpenMenu: () => void;
+  onOpen: () => void;
+  onToggleSelect: () => void;
+}) {
+  const { glyph } = KINDS[kindFor(entry.item)];
+  const isFolder = entry.kind === "folder";
+  const isImage = !isFolder && entry.item.mimeType.startsWith("image/");
+  return (
+    // biome-ignore lint/a11y/useSemanticElements: contains nested interactive menu, button nesting is invalid HTML
+    <div
+      role="button"
+      tabIndex={0}
+      className={cn(
+        "group relative flex cursor-pointer flex-col items-center gap-1.5 rounded-lg px-2 pb-2 pt-3 transition-colors",
+        selected ? "bg-[#eef0ff]" : "hover:bg-[#f5f7ff]",
+      )}
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.target instanceof HTMLInputElement) return;
+        if (event.key === "Enter" || event.key === " ") onOpen();
+      }}
+    >
+      <span
+        className={cn(
+          "absolute left-1 top-1 rounded-md bg-white shadow-sm transition-opacity",
+          selected ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+        )}
+      >
+        <input
+          type="checkbox"
+          aria-label={`Select ${entry.item.name}`}
+          checked={selected}
+          onChange={onToggleSelect}
+          onClick={(event) => event.stopPropagation()}
+          className="m-1 size-3.5 accent-[#5b64d6]"
+        />
+      </span>
+      <span className="absolute right-1 top-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+        {(!preview || entry.kind === "file") && (
+          <FileMenu open={menuOpen} items={menuItems} onToggle={onOpenMenu} />
+        )}
+      </span>
+      <span className="flex h-16 w-full items-center justify-center overflow-hidden">
+        {isImage ? (
+          <span className="relative h-16 w-full overflow-hidden rounded-lg bg-[#f5f6f9]">
+            <Image
+              src={entry.item.url}
+              alt={entry.item.name}
+              fill
+              sizes="(max-width: 640px) 50vw, (max-width: 1280px) 25vw, 12vw"
+              className="object-cover"
+            />
+          </span>
+        ) : (
+          <FileGlyph variant={glyph} className="size-12" />
+        )}
+      </span>
+      {renaming ? (
+        <RenameInput
+          value={renameValue}
+          onChange={onRenameChange}
+          onCommit={onRenameCommit}
+          onCancel={onRenameCancel}
+        />
+      ) : (
+        <span className="w-full truncate text-center text-[12px] font-medium text-[#414a5d]">
+          {entry.item.name}
+        </span>
+      )}
+    </div>
+  );
+}
+
+const RenameInput = ({
+  value,
+  onChange,
+  onCommit,
+  onCancel,
+  ref,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  onCommit: () => void;
+  onCancel: () => void;
+  ref?: React.Ref<HTMLInputElement>;
+}) => {
+  return (
+    <input
+      ref={ref}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") onCommit();
+        if (event.key === "Escape") onCancel();
+      }}
+      onBlur={onCommit}
+      aria-label="Rename"
+      className="w-full max-w-52 rounded-md border border-[#5b64d6] bg-white px-1.5 py-0.5 text-[13px] font-semibold text-[#414a5d] outline-none ring-3 ring-[#5b64d6]/10"
+    />
+  );
+};
 
 export { FilesView };

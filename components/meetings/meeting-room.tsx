@@ -9,6 +9,8 @@ import {
   MonitorUp,
   MoreHorizontal,
   PhoneOff,
+  Pin,
+  PinOff,
   Presentation,
   Share2,
   Users,
@@ -70,6 +72,7 @@ function MeetingRoom({ meetingId }: { meetingId: string }) {
   const [showParticipants, setShowParticipants] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
   const [hasMedia, setHasMedia] = useState(true);
+  const [pinnedPeerId, setPinnedPeerId] = useState<string | null>(null);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const screenPreviewRef = useRef<HTMLVideoElement>(null);
@@ -211,11 +214,12 @@ function MeetingRoom({ meetingId }: { meetingId: string }) {
     });
 
     socket.on("meeting:peers", (payload) => {
-      const existing = new Map<string, PeerConnectionInfo>();
-      for (const info of pcsRef.current) {
-        if (info[1].initiated) existing.set(info[0], info[1]);
+      for (const info of pcsRef.current.values()) {
+        info.pc.close();
       }
-      pcsRef.current = existing;
+      pcsRef.current.clear();
+      pendingIceRef.current.clear();
+      setRemoteStreams({});
       setPeers(payload.peers);
       for (const peer of payload.peers) {
         void connectToPeer(peer.peerId);
@@ -228,11 +232,11 @@ function MeetingRoom({ meetingId }: { meetingId: string }) {
           ? prev
           : [...prev, payload.peer],
       );
-      void connectToPeer(payload.peer.peerId);
     });
 
     socket.on("meeting:peer-left", (payload) => {
       setPeers((prev) => prev.filter((peer) => peer.peerId !== payload.peerId));
+      setPinnedPeerId((prev) => (prev === payload.peerId ? null : prev));
       clearPeer(payload.peerId);
     });
 
@@ -245,8 +249,9 @@ function MeetingRoom({ meetingId }: { meetingId: string }) {
     });
 
     socket.on("meeting:offer", async (payload) => {
-      let info: PeerConnectionInfo | null | undefined =
-        pcsRef.current.get(payload.peerId);
+      let info: PeerConnectionInfo | null | undefined = pcsRef.current.get(
+        payload.peerId,
+      );
       const initiated = info?.initiated ?? false;
       if (info && initiated) return;
       if (!info) {
@@ -307,7 +312,9 @@ function MeetingRoom({ meetingId }: { meetingId: string }) {
       pendingIceRef.current.clear();
       screenTrackRef.current?.stop();
       screenTrackRef.current = null;
-      localStreamRef.current?.getTracks().forEach((track) => track.stop());
+      localStreamRef.current?.getTracks().forEach((track) => {
+        track.stop();
+      });
       localStreamRef.current = null;
     };
 
@@ -366,6 +373,7 @@ function MeetingRoom({ meetingId }: { meetingId: string }) {
   }, [socketConnected]);
 
   useEffect(() => {
+    if (!controls.sharing) return;
     if (screenTrackRef.current && screenPreviewRef.current) {
       screenPreviewRef.current.srcObject = new MediaStream([
         screenTrackRef.current,
@@ -380,9 +388,9 @@ function MeetingRoom({ meetingId }: { meetingId: string }) {
   }, [notice]);
   const toggleMute = () => {
     const next = !controlsRef.current.muted;
-    localStreamRef.current
-      ?.getAudioTracks()
-      .forEach((track) => (track.enabled = !next));
+    localStreamRef.current?.getAudioTracks().forEach((track) => {
+      track.enabled = !next;
+    });
     setControls((prev) => ({ ...prev, muted: next }));
     socketRef.current?.emit("meeting:state", {
       meetingId,
@@ -394,9 +402,9 @@ function MeetingRoom({ meetingId }: { meetingId: string }) {
 
   const toggleCamera = () => {
     const next = !controlsRef.current.cameraOn;
-    localStreamRef.current
-      ?.getVideoTracks()
-      .forEach((track) => (track.enabled = next));
+    localStreamRef.current?.getVideoTracks().forEach((track) => {
+      track.enabled = next;
+    });
     setControls((prev) => ({ ...prev, cameraOn: next }));
     socketRef.current?.emit("meeting:state", {
       meetingId,
@@ -494,6 +502,7 @@ function MeetingRoom({ meetingId }: { meetingId: string }) {
   }
 
   const participantCount = peers.length + 1;
+  const pinnedPeer = peers.find((peer) => peer.peerId === pinnedPeerId) ?? null;
   const currentPeerStates = {
     muted: controls.muted,
     cameraOn: controls.cameraOn,
@@ -556,6 +565,42 @@ function MeetingRoom({ meetingId }: { meetingId: string }) {
                   Connecting to the meeting room…
                 </p>
               </div>
+            ) : pinnedPeer ? (
+              <div className="flex h-full min-h-0 flex-col gap-3 lg:flex-row">
+                <div className="min-h-0 min-w-0 flex-1">
+                  <RemoteTile
+                    peer={pinnedPeer}
+                    stream={remoteStreams[pinnedPeer.peerId]}
+                    pinned
+                    stage
+                    onPinToggle={() => setPinnedPeerId(null)}
+                  />
+                </div>
+                <div className="flex w-full shrink-0 gap-3 overflow-x-auto pb-1 lg:w-72 lg:min-h-0 lg:flex-col lg:overflow-y-auto lg:overflow-x-visible lg:pb-0">
+                  <VideoTile
+                    name={nameRef.current}
+                    label="You"
+                    muted={currentPeerStates.muted}
+                    cameraOn={currentPeerStates.cameraOn}
+                    sharing={currentPeerStates.sharing}
+                    mediaAvailable={hasMedia}
+                    videoRef={localVideoRef}
+                    sharingVideoRef={screenPreviewRef}
+                    isSelf
+                    compact
+                  />
+                  {peers
+                    .filter((peer) => peer.peerId !== pinnedPeerId)
+                    .map((peer) => (
+                      <RemoteTile
+                        key={peer.peerId}
+                        peer={peer}
+                        stream={remoteStreams[peer.peerId]}
+                        onPinToggle={() => setPinnedPeerId(peer.peerId)}
+                      />
+                    ))}
+                </div>
+              </div>
             ) : (
               <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 <VideoTile
@@ -564,6 +609,7 @@ function MeetingRoom({ meetingId }: { meetingId: string }) {
                   muted={currentPeerStates.muted}
                   cameraOn={currentPeerStates.cameraOn}
                   sharing={currentPeerStates.sharing}
+                  mediaAvailable={hasMedia}
                   videoRef={localVideoRef}
                   sharingVideoRef={screenPreviewRef}
                   isSelf
@@ -573,6 +619,7 @@ function MeetingRoom({ meetingId }: { meetingId: string }) {
                     key={peer.peerId}
                     peer={peer}
                     stream={remoteStreams[peer.peerId]}
+                    onPinToggle={() => setPinnedPeerId(peer.peerId)}
                   />
                 ))}
               </div>
@@ -670,21 +717,30 @@ function VideoTile({
   muted,
   cameraOn,
   sharing,
+  mediaAvailable = true,
   videoRef,
   sharingVideoRef,
   isSelf = false,
+  compact = false,
 }: {
   name: string;
   label: string;
   muted: boolean;
   cameraOn: boolean;
   sharing: boolean;
+  mediaAvailable?: boolean;
   videoRef: React.RefObject<HTMLVideoElement | null>;
   sharingVideoRef?: React.RefObject<HTMLVideoElement | null>;
   isSelf?: boolean;
+  compact?: boolean;
 }) {
   return (
-    <div className="relative aspect-video overflow-hidden rounded-2xl border border-white/10 bg-[#1c2029]">
+    <div
+      className={cn(
+        "relative aspect-video overflow-hidden rounded-2xl border border-white/10 bg-[#1c2029]",
+        compact && "w-64 shrink-0 lg:w-auto lg:shrink",
+      )}
+    >
       {sharing ? (
         <video
           ref={sharingVideoRef}
@@ -693,8 +749,11 @@ function VideoTile({
           muted
           className="absolute inset-0 h-full w-full object-contain"
         />
-      ) : !cameraOn ? (
-        <InitialsBackdrop name={name} />
+      ) : !cameraOn || !mediaAvailable ? (
+        <InitialsBackdrop
+          name={name}
+          caption={mediaAvailable ? "Camera off" : "No camera"}
+        />
       ) : (
         <video
           ref={videoRef}
@@ -735,14 +794,26 @@ function VideoTile({
 function RemoteTile({
   peer,
   stream,
+  pinned = false,
+  stage = false,
+  onPinToggle,
 }: {
   peer: MeetingPeer;
   stream?: MediaStream;
+  pinned?: boolean;
+  stage?: boolean;
+  onPinToggle?: () => void;
 }) {
   const showVideo = Boolean(stream) && (peer.cameraOn || peer.sharing);
   return (
-    <div className="relative aspect-video overflow-hidden rounded-2xl border border-white/10 bg-[#1c2029]">
+    <div
+      className={cn(
+        "group relative overflow-hidden rounded-2xl border border-white/10 bg-[#1c2029]",
+        stage ? "h-full w-full" : "aspect-video",
+      )}
+    >
       {showVideo ? (
+        // biome-ignore lint/a11y/useMediaCaption: live WebRTC stream has no caption track
         <video
           autoPlay
           playsInline
@@ -756,6 +827,26 @@ function RemoteTile({
       ) : (
         <InitialsBackdrop name={peer.name} />
       )}
+      {pinned ? (
+        <span className="absolute left-3 top-3 rounded-lg bg-[#0b0d12]/70 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#aeb7ff] backdrop-blur-sm">
+          Pinned
+        </span>
+      ) : null}
+      {onPinToggle ? (
+        <button
+          type="button"
+          aria-label={pinned ? `Unpin ${peer.name}` : `Pin ${peer.name}`}
+          className={cn(
+            "absolute right-3 top-3 flex size-8 items-center justify-center rounded-lg bg-[#0b0d12]/70 text-[#c3c9d9] backdrop-blur-sm transition-colors hover:bg-[#0b0d12] hover:text-white",
+            pinned
+              ? "text-[#aeb7ff]"
+              : "opacity-0 focus-visible:opacity-100 group-hover:opacity-100",
+          )}
+          onClick={onPinToggle}
+        >
+          {pinned ? <PinOff className="size-4" /> : <Pin className="size-4" />}
+        </button>
+      ) : null}
       <div className="absolute inset-x-0 bottom-0 flex items-center justify-between p-3">
         <span className="flex items-center gap-2 rounded-lg bg-[#0b0d12]/70 px-2.5 py-1 text-[11px] font-semibold backdrop-blur-sm">
           {peer.sharing ? (
@@ -776,13 +867,19 @@ function RemoteTile({
   );
 }
 
-function InitialsBackdrop({ name }: { name: string }) {
+function InitialsBackdrop({
+  name,
+  caption = "Camera off",
+}: {
+  name: string;
+  caption?: string;
+}) {
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
       <span className="flex size-16 items-center justify-center rounded-full bg-[#2c3a5e] text-[18px] font-semibold text-[#b9c0ed]">
         {getInitials(name)}
       </span>
-      <span className="text-[12px] font-medium text-[#8b93a7]">Camera off</span>
+      <span className="text-[12px] font-medium text-[#8b93a7]">{caption}</span>
     </div>
   );
 }

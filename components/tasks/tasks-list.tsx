@@ -11,6 +11,7 @@ import {
   StatusMenu,
   StatusPill,
   TaskCheckbox,
+  TaskIndicators,
 } from "@/components/tasks/task-bits";
 import { STATUS_META, STATUS_ORDER } from "@/lib/task-meta";
 import type {
@@ -162,7 +163,7 @@ export function TasksList({
           >
             <span className="size-[18px] shrink-0 rounded-[5px] border border-transparent" />
             <input
-              autoFocus
+              ref={quickRef}
               value={quickTitle}
               onChange={(e) => setQuickTitle(e.target.value)}
               onBlur={() => {
@@ -227,6 +228,11 @@ function TaskRow({
           >
             {task.title}
           </span>
+          <TaskIndicators
+            attachmentCount={task.attachments.length}
+            reminderAt={task.reminderAt}
+            mentionCount={task.mentions.length}
+          />
           <span className="md:hidden">
             <ProjectChip name={task.projectName} color={task.projectColor} />
           </span>
