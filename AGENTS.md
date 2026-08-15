@@ -59,4 +59,4 @@ Next.js 16 (App Router) + Bun, Drizzle on SQLite (libsql), Better Auth, Tailwind
 
 - `.env` is required and gitignored; `.env.example` is committed. Populate `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, and the OAuth pairs above.
 - `next.config.ts` enables the React Compiler (`reactCompiler: true`) — write compiler-compatible code (memoization is automatic).
-- `docker-compose.yml` is a starter stub, not wired to the app.
+- `docker-compose.yml` runs the app in Docker with `docker compose up`: `web` (Next dev, port 3000), `ws` (Socket.IO, port 3001), and a one-shot `deps` install. SQLite is shared through the repo bind mount; host DB tools keep working on the same file.
