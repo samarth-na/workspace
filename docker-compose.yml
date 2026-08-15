@@ -1,0 +1,14 @@
+version: "3.9"
+
+# Starter compose file. Add services here when you need them.
+services:
+  app:
+    image: node:22-alpine
+    working_dir: /app
+    volumes:
+      - ./:/app
+      - sqlite-data:/app/data
+    command: ["bun", "install", "--frozen-lockfile"]
+
+volumes:
+  sqlite-data:
