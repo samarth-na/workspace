@@ -15,35 +15,26 @@ function MeetingSidebarItem({
 
   useEffect(() => {
     let cancelled = false;
-    fetchMeetings()
-      .then((data) => {
+    const load = async () => {
+      try {
+        const data = await fetchMeetings();
         if (cancelled) return;
-        const now = Date.now();
-        const live = data.meetings.find((entry) => entry.status === "live");
-        const next = data.meetings
-          .filter(
-            (entry) => entry.status === "scheduled" && entry.startsAt > now,
-          )
-          .sort((a, b) => a.startsAt - b.startsAt)[0];
-        setMeeting(live ?? next ?? null);
-      })
-      .catch(() => {
+        setMeeting(
+          data.meetings.find((entry) => entry.status === "live") ?? null,
+        );
+      } catch {
         // sidebar stays quiet if meetings cannot load
-      });
+      }
+    };
+    load();
+    const timer = window.setInterval(load, 10000);
     return () => {
       cancelled = true;
+      window.clearInterval(timer);
     };
   }, []);
 
   if (!meeting) return null;
-
-  const timeLabel =
-    meeting.status === "live"
-      ? "Live"
-      : new Date(meeting.startsAt).toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-        });
 
   return (
     <button
@@ -55,28 +46,22 @@ function MeetingSidebarItem({
       }
       onClick={() => onOpen(`/meeting/${meeting.id}`)}
     >
-      <span
-        className={
-          meeting.status === "live"
-            ? "size-3 rounded-[3px] bg-[#67bd8b]"
-            : "size-3 rounded-[3px] bg-[#9aa1ad]"
-        }
-      />
+      <span className="size-3 rounded-[3px] bg-[#67bd8b]" />
       <span
         className={
           mobile
-            ? "flex-1 truncate text-[14px] text-[#5d5d60]"
-            : "flex-1 truncate text-[13px] text-[#606064]"
+            ? "flex-1 truncate text-[14px] text-[#2e2e31]"
+            : "flex-1 truncate text-[13px] text-[#2e2e31]"
         }
       >
         {meeting.title}
       </span>
       <span
         className={
-          mobile ? "text-[12px] text-[#99999b]" : "text-[11px] text-[#969699]"
+          mobile ? "text-[12px] text-[#45454a]" : "text-[11px] text-[#45454a]"
         }
       >
-        {timeLabel}
+        Live
       </span>
     </button>
   );
