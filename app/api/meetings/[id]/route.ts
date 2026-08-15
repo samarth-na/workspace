@@ -1,0 +1,84 @@
+import { eq } from "drizzle-orm";
+import { NextResponse } from "next/server";
+
+import { db } from "@/db";
+import { meeting } from "@/db/meetings";
+import { getSessionUser } from "@/lib/chat-data";
+import { addMeetingMember, getMeeting } from "@/lib/meeting-data";
+import type { MeetingResponse } from "@/lib/meeting-types";
+
+async function meetingResponse(
+  meetingId: string,
+  self: { id: string; name: string } | null,
+): Promise<MeetingResponse | null> {
+  const summary = await getMeeting(meetingId, self?.id ?? null);
+  if (!summary) return null;
+  return {
+    meeting: summary,
+    me: self ? { name: self.name, isSignedIn: true } : null,
+  };
+}
+
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+  const self = await getSessionUser();
+  const data = await meetingResponse(id, self);
+  if (!data) {
+    return NextResponse.json({ error: "Meeting not found" }, { status: 404 });
+  }
+  return NextResponse.json<MeetingResponse>(data);
+}
+
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+  const self = await getSessionUser();
+  const body = (await request.json()) as { action?: string };
+  if (body.action !== "join" && body.action !== "end") {
+    return NextResponse.json(
+      { error: "action must be join or end" },
+      { status: 400 },
+    );
+  }
+
+  const rows = await db
+    .select()
+    .from(meeting)
+    .where(eq(meeting.id, id))
+    .limit(1);
+  const row = rows[0];
+  if (!row) {
+    return NextResponse.json({ error: "Meeting not found" }, { status: 404 });
+  }
+
+  if (body.action === "join") {
+    if (self) {
+      await addMeetingMember(id, self.id);
+    }
+    if (row.status === "scheduled") {
+      const now = new Date();
+      const startsAt =
+        row.startsAt.getTime() > now.getTime() ? row.startsAt : now;
+      await db
+        .update(meeting)
+        .set({ status: "live", startsAt })
+        .where(eq(meeting.id, id));
+    }
+  } else {
+    await db
+      .update(meeting)
+      .set({ status: "ended", endsAt: new Date() })
+      .where(eq(meeting.id, id));
+  }
+
+  const data = await meetingResponse(id, self);
+  if (!data) {
+    return NextResponse.json({ error: "Meeting not found" }, { status: 404 });
+  }
+  return NextResponse.json<MeetingResponse>(data);
+}

@@ -1,16 +1,22 @@
 import { headers } from "next/headers";
-import { WorkspaceShell } from "@/components/workspace-shell";
+import { AppShell } from "@/components/shell/app-shell";
 import { auth } from "@/lib/auth";
 
-export default async function Home() {
+export default async function WorkspaceLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
 
   return (
-    <WorkspaceShell
+    <AppShell
       userName={session?.user.name ?? "Samarth"}
       isSignedIn={Boolean(session)}
-    />
+    >
+      {children}
+    </AppShell>
   );
 }

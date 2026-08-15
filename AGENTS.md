@@ -41,6 +41,20 @@ Next.js 16 (App Router) + Bun, Drizzle on SQLite (libsql), Better Auth, Tailwind
 - The shadcn CLI is interactive by default; non-interactive flags: `-y -b radix --preset nova` (this repo is Radix + Nova). Older flags like `--base-color` no longer exist.
 - Tailwind v4: no `tailwind.config.js`; theme is CSS variables in `app/globals.css`.
 
+## Workspace UI
+
+- Routes per feature under the `app/(workspace)/` route group (`/`, `/inbox`, `/files`, `/calls`, `/people`, `/messages`, `/messages/[id]`). `app/(workspace)/layout.tsx` reads the Better Auth session and renders the client `AppShell`.
+- Shell chrome (sidebar, header, create menu, search dialog, profile menu) lives in `components/shell/`; per-feature view bodies in `components/views/`; small shared pieces in `components/shared/`. `components/workspace-shell.tsx` no longer exists.
+- The design is light-only and Linear-inspired. Fonts: Inter (`--font-inter`) + Geist Mono. Color tokens (`--bg-sidebar-color`, `--bg-base-color`, `--bg-border-color`, text/border scales) live in `app/globals.css`. Do not add dark mode unless asked.
+- Keep hover, pressed, and focus states. `bun run lint` enforces a11y rules (button `type`, keyboard access, no `autoFocus`).
+
+## Chat
+
+- DB tables (`conversation`, `conversation_member`, `message`, `message_reaction`) live in `db/chat.ts` — separate from the generated `db/schema.ts`; `drizzle.config.ts` schema is an array of both. Demo data: `bun run db:seed` (idempotent; creates demo users, 3 channels, DMs, seeded messages/unreads).
+- REST API in `app/api/chat/` (conversations, messages, read, reactions, users, create-DM). Signed-out requests get a read-only "preview" view of seeded data; writes require a session.
+- Real-time runs over Socket.IO on a SEPARATE process: `bun run ws` (`ws/server.ts`, port 3001, env `WS_PORT`). The browser client (`components/chat/chat-socket.ts`) connects to `NEXT_PUBLIC_WS_URL` (default `ws://localhost:3001`) and falls back to REST sends + 5s polling when disconnected.
+- Chat UI in `components/chat/` (conversation list, thread, composer, reactions, new-message dialog); pages under `app/(workspace)/messages/`. Shared request/response + WS event types in `lib/chat-types.ts`; shared query/build helpers in `lib/chat-data.ts`.
+
 ## Environment
 
 - `.env` is required and gitignored; `.env.example` is committed. Populate `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, and the OAuth pairs above.

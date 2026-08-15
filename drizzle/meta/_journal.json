@@ -8,6 +8,34 @@
       "when": 1786778386465,
       "tag": "0000_bitter_ezekiel_stane",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1786781557397,
+      "tag": "0001_naive_dark_beast",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1786790809605,
+      "tag": "0002_productive_reaper",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1786791267179,
+      "tag": "0003_big_blackheart",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1786791458940,
+      "tag": "0004_orange_jubilee",
+      "breakpoints": true
     }
   ]
 }

@@ -7,7 +7,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
+  --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -49,6 +49,37 @@
 }
 
 :root {
+  --font-regular:
+    var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: var(--font-regular);
+  --font-monospace:
+    var(--font-geist-mono), "SFMono-Regular", Consolas, monospace;
+  --bg-sidebar-light: #f1f1f2;
+  --bg-base-color-light: #f9f9fa;
+  --bg-border-color-light: #e2e2e2;
+  --content-color-light: #b0b5c0;
+  --content-highlight-color-light: #23252a;
+  --bg-color: var(--bg-sidebar-light);
+  --bg-sidebar-color: var(--bg-sidebar-light);
+  --bg-base-color: var(--bg-base-color-light);
+  --bg-border-color: var(--bg-border-color-light);
+  --header-color: #fdfdfd;
+  --header-height: 68px;
+  --selection-bg: lch(39.176% 1.25 282 / 0.2);
+  --app-active-selection-bg: lch(53% 52.26 286.91 / 0.4);
+  --app-link-color: #3f60d9;
+  --color-bg-primary: #fdfdfd;
+  --color-bg-secondary: #f1f1f2;
+  --color-bg-tertiary: #e9e9ea;
+  --color-bg-quaternary: #f9f9fa;
+  --color-text-primary: #1b1b1b;
+  --color-text-secondary: #3f3f42;
+  --color-text-tertiary: #656567;
+  --color-text-quaternary: #7c7c7c;
+  --color-border-primary: #f0f0f1;
+  --color-border-secondary: #e2e2e2;
+  --color-border-tertiary: #d6d6d6;
+  --control-border-radius: 8px;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -123,7 +154,20 @@
   }
   body {
     @apply bg-background text-foreground;
-    background: #f7f8fa;
+    background: var(--bg-base-color);
+    color: var(--color-text-secondary);
+    font-family: var(--font-regular);
+    font-synthesis: none;
+    line-height: 1.5;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+  button,
+  input,
+  optgroup,
+  select,
+  textarea {
+    font-family: var(--font-regular);
   }
   html {
     @apply font-sans;
@@ -135,9 +179,29 @@ a {
   -webkit-tap-highlight-color: transparent;
 }
 
+.workspace-sidebar-scroll {
+  scrollbar-color: #c9c9cc transparent;
+  scrollbar-width: thin;
+}
+
+.workspace-sidebar-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.workspace-sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.workspace-sidebar-scroll::-webkit-scrollbar-thumb {
+  background: #c9c9cc;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
 ::selection {
-  background: #dfe2ff;
-  color: #27314b;
+  background: var(--selection-bg);
+  color: var(--color-text-primary);
 }
 
 @media (prefers-reduced-motion: reduce) {
