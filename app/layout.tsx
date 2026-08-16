@@ -1,9 +1,18 @@
 import type { Metadata } from "next";
-import { Geist_Mono, Inter } from "next/font/google";
+import {
+  Geist_Mono,
+  Hanken_Grotesk,
+  Schibsted_Grotesk,
+} from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
+const hanken = Hanken_Grotesk({
+  variable: "--font-hanken",
+  subsets: ["latin"],
+});
+
+const schibsted = Schibsted_Grotesk({
+  variable: "--font-schibsted",
   subsets: ["latin"],
 });
 
@@ -13,15 +22,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Cedar & Co. | Cloud Workspace",
-  description: "A calm home for your team's conversations, calls, and files.",
+  title: "Cloud Workspace",
+  description:
+    "cloud shared workspace with file sharing, image uploading, video calls, group chts and more",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${hanken.variable} ${schibsted.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

@@ -45,7 +45,7 @@ Next.js 16 (App Router) + Bun, Drizzle on SQLite (libsql), Better Auth, Tailwind
 
 - Routes per feature under the `app/(workspace)/` route group (`/home`, `/files`, `/calls`, `/people`, `/tasks`, `/messages`, `/messages/[id]`, `/settings`). `app/(workspace)/layout.tsx` reads the Better Auth session and renders the client `AppShell`.
 - Shell chrome (sidebar, header, create menu, search dialog, profile menu) lives in `components/shell/`; per-feature view bodies in `components/views/`; small shared pieces in `components/shared/`. `components/workspace-shell.tsx` no longer exists.
-- The design is light-only and Linear-inspired. Fonts: Inter (`--font-inter`) + Geist Mono. Color tokens (`--bg-sidebar-color`, `--bg-base-color`, `--bg-border-color`, text/border scales) live in `app/globals.css`. Do not add dark mode unless asked.
+- The design is light-only and Linear-inspired. Fonts: Schibsted Grotesk (`--font-schibsted`) for headings + Hanken Grotesk (`--font-hanken`) for body + Geist Mono. Color tokens (`--bg-sidebar-color`, `--bg-base-color`, `--bg-border-color`, text/border scales) live in `app/globals.css`. Do not add dark mode unless asked.
 - Keep hover, pressed, and focus states. `bun run lint` enforces a11y rules (button `type`, keyboard access, no `autoFocus`).
 
 ## Chat
