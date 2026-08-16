@@ -69,6 +69,21 @@ bun run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+## Database
+
+- Local development uses SQLite at `db/../sqlite.db` or via `DATABASE_URL="file:..."`.
+- Production uses Turso. Set `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`; these win over `DATABASE_URL`. Create a database with:
+
+```bash
+turso db create cloud-workspace
+turso db show cloud-workspace --url
+turso db tokens create cloud-workspace
+```
+
+- Set `TURSO_DATABASE_URL` to the URL shown by `turso db show` and `TURSO_AUTH_TOKEN` to the token from `turso db tokens create`. Add both to Vercel.
+- Run migrations against the target database: `bun run db:migrate` (local `DATABASE_URL`) or `TURSO_DATABASE_URL=... TURSO_AUTH_TOKEN=... bun run db:migrate`.
+- Health endpoint: `GET /api/health` returns `200` with `{"status":"ok","database":"ok"}` when the database answers a query, or `503` otherwise.
+
 ## Scripts
 
 | Command | What it does |
