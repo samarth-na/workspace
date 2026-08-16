@@ -395,7 +395,11 @@ function Thread({ conversationId }: { conversationId: string }) {
               index > 0 &&
               dayKey(message.createdAt) !== dayKey(previous.createdAt);
             const grouped =
-              index > 0 && !newDay && previous.sender.id === message.sender.id;
+              index > 0 &&
+              !newDay &&
+              previous.sender.id === message.sender.id &&
+              previous.sender.name === message.sender.name &&
+              formatTime(previous.createdAt) === formatTime(message.createdAt);
             return (
               <Fragment key={message.id}>
                 {newDay ? (
@@ -495,13 +499,20 @@ function MessageRow({
         </span>
       )}
       <div className="min-w-0 flex-1">
-        <p className="text-[12px] font-semibold text-[#414a5d]">
-          {message.sender.name}{" "}
-          <span className="ml-1 font-normal text-[#a0a6b2]">
-            {formatTime(message.createdAt)}
-          </span>
-        </p>
-        <p className="mt-1 max-w-xl whitespace-pre-wrap text-[13px] leading-5 text-[#6f7889]">
+        {!grouped ? (
+          <p className="text-[12px] font-semibold text-[#414a5d]">
+            {message.sender.name}{" "}
+            <span className="ml-1 font-normal text-[#a0a6b2]">
+              {formatTime(message.createdAt)}
+            </span>
+          </p>
+        ) : null}
+        <p
+          className={cn(
+            "max-w-xl whitespace-pre-wrap text-[13px] leading-5 text-[#6f7889]",
+            !grouped && "mt-1",
+          )}
+        >
           {message.body}
         </p>
         {interactive && message.reactions.length > 0 ? (
