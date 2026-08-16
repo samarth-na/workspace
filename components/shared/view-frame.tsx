@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { Plus } from "pixelarticons/react";
 import { Button } from "@/components/ui/button";
 
 function ViewFrame({

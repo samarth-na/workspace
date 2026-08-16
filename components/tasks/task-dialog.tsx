@@ -1,6 +1,6 @@
 "use client";
 
-import { FileText, Paperclip, Search, X } from "lucide-react";
+import { Attachment, Close, FileText, Search } from "pixelarticons/react";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -384,7 +384,7 @@ export function TaskDialog({
           <div className="mt-4 rounded-xl border border-[#e9ebef] bg-[#fafbfc] p-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Paperclip className="size-3.5 text-[#8c94a4]" />
+                <Attachment className="size-3.5 text-[#8c94a4]" />
                 <span className="text-[12px] font-medium text-[#596275]">
                   Attachments
                 </span>
@@ -439,7 +439,7 @@ export function TaskDialog({
                         className="text-[#8c94a4] hover:text-[#e5484d]"
                         onClick={() => toggleFile(file)}
                       >
-                        <X className="size-3.5" />
+                        <Close className="size-3.5" />
                       </button>
                     </div>
                   );
@@ -494,7 +494,7 @@ export function TaskDialog({
                   className="rounded-lg p-1 text-[#8c94a4] hover:bg-[#f4f5f8]"
                   onClick={() => setFilesOpen(false)}
                 >
-                  <X className="size-4" />
+                  <Close className="size-4" />
                 </button>
               </div>
               <div className="mt-3 flex items-center gap-2 rounded-lg border border-[#e3e5ea] px-2.5 py-2">

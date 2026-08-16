@@ -1,7 +1,7 @@
 "use client";
 
-import { ArrowLeft, ListTodo, Smile } from "lucide-react";
 import Link from "next/link";
+import { ArrowLeft, Bulletlist, Smile } from "pixelarticons/react";
 import { Fragment, useEffect, useRef, useState } from "react";
 import {
   fetchConversations,
@@ -534,7 +534,7 @@ function MessageRow({
             className="rounded-md p-1 text-[#9aa1ad] transition-colors hover:bg-[#f2f3f6] hover:text-[#535dc9]"
             onClick={() => onCreateTask(message)}
           >
-            <ListTodo className="size-3.5" />
+            <Bulletlist className="size-3.5" />
           </button>
           <button
             ref={smileRef}

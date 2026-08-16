@@ -1,16 +1,15 @@
 "use client";
 
 import {
-  ArrowUpRight,
-  FileAudio,
+  ExternalLink,
   FileText,
-  FileVideo,
+  Grid3x3,
   Image,
+  Music,
   Presentation,
   Search,
-  Table2,
   Video,
-} from "lucide-react";
+} from "pixelarticons/react";
 import { useShell } from "@/components/shell/shell-context";
 import { Button } from "@/components/ui/button";
 import type { FileItem } from "@/lib/file-types";
@@ -23,7 +22,7 @@ const KIND_META = {
   pdf: { label: "PDF", icon: FileText, tone: "bg-[#fbeae8] text-[#d65a52]" },
   spreadsheet: {
     label: "Spreadsheet",
-    icon: Table2,
+    icon: Grid3x3,
     tone: "bg-[#e7f4ea] text-[#4caf7d]",
   },
   presentation: {
@@ -33,12 +32,12 @@ const KIND_META = {
   },
   video: {
     label: "Video",
-    icon: FileVideo,
+    icon: Video,
     tone: "bg-[#e2e9f7] text-[#5b64d6]",
   },
   audio: {
     label: "Audio",
-    icon: FileAudio,
+    icon: Music,
     tone: "bg-[#e2e9f7] text-[#5b64d6]",
   },
   document: {
@@ -166,7 +165,7 @@ export function HomeView({
           className="flex size-8 items-center justify-center rounded-lg text-[#89898c] hover:bg-[#f0f0f1] hover:text-[#454548]"
           onClick={openSearch}
         >
-          <Search className="size-[17px]" strokeWidth={1.8} />
+          <Search className="size-[17px]" />
         </button>
       </div>
 
@@ -355,7 +354,7 @@ function TaskRow({
           {due}
         </span>
       ) : null}
-      <ArrowUpRight className="hidden size-4 shrink-0 text-[#b0b0b3] sm:block" />
+      <ExternalLink className="hidden size-4 shrink-0 text-[#b0b0b3] sm:block" />
     </button>
   );
 }
@@ -388,7 +387,7 @@ function MeetingRow({
           isLive ? "bg-[#e4f3e9] text-[#56a878]" : "bg-[#f0f0f1] text-[#7d8494]"
         }`}
       >
-        <Video className="size-[17px]" strokeWidth={1.8} />
+        <Video className="size-[17px]" />
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-[13px] font-semibold text-[#363639]">
@@ -451,7 +450,7 @@ function FileRow({
       <span
         className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${kind.tone}`}
       >
-        <Icon className="size-4" strokeWidth={1.7} />
+        <Icon className="size-4" />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[13px] font-medium text-[#3d3d40]">
@@ -471,7 +470,7 @@ function FileRow({
       <span className="hidden text-[12px] text-[#8f8f93] sm:block">
         {whenLabel(file.createdAt, now)}
       </span>
-      <ArrowUpRight className="hidden size-4 shrink-0 text-[#b0b0b3] sm:block" />
+      <ExternalLink className="hidden size-4 shrink-0 text-[#b0b0b3] sm:block" />
     </button>
   );
 }

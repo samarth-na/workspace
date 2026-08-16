@@ -1,22 +1,21 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
-  CalendarClock,
-  CalendarDays,
+  Calendar,
+  CalendarRange,
   Check,
   ChevronDown,
-  Clock3,
-  Loader2,
-  PencilLine,
+  Clock,
+  Close,
+  Loader,
+  Pencil,
   Phone,
   Play,
   Search,
-  Square,
   Users,
   Video,
-  X,
-} from "lucide-react";
-import { useRouter } from "next/navigation";
+} from "pixelarticons/react";
 import { useEffect, useRef, useState } from "react";
 import { searchUsers } from "@/components/chat/chat-api";
 import {
@@ -185,7 +184,7 @@ function MeetingsView() {
       ) : null}
       {loading ? (
         <div className="flex h-40 items-center justify-center">
-          <Loader2 className="size-5 animate-spin text-[#8b94a5]" />
+          <Loader className="size-5 animate-spin text-[#8b94a5]" />
         </div>
       ) : (
         <div className="max-w-5xl space-y-8">
@@ -227,7 +226,7 @@ function MeetingsView() {
 
           <section>
             <h2 className="mb-2.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-[#8b94a5]">
-              <CalendarClock className="size-3" />
+              <CalendarRange className="size-3" />
               Upcoming
             </h2>
             {upcoming.length === 0 ? (
@@ -266,7 +265,7 @@ function MeetingsView() {
 
           <section>
             <h2 className="mb-2.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-[#8b94a5]">
-              <Clock3 className="size-3" />
+              <Clock className="size-3" />
               Past meetings
             </h2>
             {past.length === 0 ? (
@@ -350,7 +349,7 @@ function LiveMeetingCard({
               disabled={busy}
               onClick={onEnd}
             >
-              {busy ? <Loader2 className="size-3.5 animate-spin" /> : null}
+              {busy ? <Loader className="size-3.5 animate-spin" /> : null}
               End meeting
             </Button>
           ) : null}
@@ -435,7 +434,7 @@ function UpcomingMeetingRow({
                 onClick={onStart}
               >
                 {busy ? (
-                  <Loader2 className="size-3.5 animate-spin" />
+                  <Loader className="size-3.5 animate-spin" />
                 ) : (
                   <Play className="size-3.5" />
                 )}
@@ -515,7 +514,7 @@ function PastMeetingRow({
               className="flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] font-semibold text-[#7c85d6] hover:bg-[#eef0ff]"
               onClick={onToggleNotes}
             >
-              <PencilLine className="size-3.5" />
+              <Pencil className="size-3.5" />
               Notes {notes.length > 0 ? `(${notes.length})` : ""}
               <ChevronDown
                 className={cn(
@@ -531,7 +530,7 @@ function PastMeetingRow({
             </p>
           ) : null}
           <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-[#9aa1ad]">
-            <CalendarDays className="size-3.5 shrink-0" />
+            <Calendar className="size-3.5 shrink-0" />
             {formatMeetingTime(meeting.startsAt)}
             {end ? ` – ${formatTimeOnly(end)}` : ""}
             {durationMinutes !== null ? ` · ${durationMinutes} min` : ""}
@@ -607,7 +606,7 @@ function NotesBlock({
         onClick={onToggle}
       >
         <span className="flex items-center gap-2">
-          <PencilLine className="size-3.5" />
+          <Pencil className="size-3.5" />
           Notes {notes.length > 0 ? `(${notes.length})` : ""}
         </span>
         <ChevronDown
@@ -663,7 +662,7 @@ function NotesBlock({
               className="h-8 shrink-0 bg-[#5b64d6] text-[11px] font-semibold hover:bg-[#4e57c5]"
               onClick={() => void submit()}
             >
-              {submitting ? <Loader2 className="size-3 animate-spin" /> : null}
+              {submitting ? <Loader className="size-3 animate-spin" /> : null}
               Add note
             </Button>
           </div>
@@ -856,7 +855,7 @@ function AssignPopover({
                   className="rounded-lg p-1.5 text-[#8b94a5] hover:bg-[#f4f5f8]"
                   onClick={() => setOpen(false)}
                 >
-                  <X className="size-3.5" />
+                  <Close className="size-3.5" />
                 </button>
                 <Button
                   type="button"
@@ -866,7 +865,7 @@ function AssignPopover({
                   onClick={() => void save()}
                 >
                   {saving ? (
-                    <Loader2 className="size-3 animate-spin" />
+                    <Loader className="size-3 animate-spin" />
                   ) : (
                     <Check className="size-3" />
                   )}
@@ -930,13 +929,11 @@ function formatMeetingTime(timestamp: number) {
   if (date.toDateString() === tomorrow.toDateString()) {
     return `Tomorrow · ${time}`;
   }
-  return (
-    date.toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    }) + ` · ${time}`
-  );
+  return `${date.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  })} · ${time}`;
 }
 
 function formatTimeOnly(date: Date) {

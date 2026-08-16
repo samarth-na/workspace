@@ -1,13 +1,13 @@
 "use client";
 
 import {
+  Bulletlist,
   FileText,
   FolderPlus,
-  ListTodo,
-  MessageCircle,
+  Message,
   Upload,
   Video,
-} from "lucide-react";
+} from "pixelarticons/react";
 import { requestFilePick, requestNewFolder } from "@/lib/file-pick";
 
 export function CreateMenu({
@@ -41,7 +41,7 @@ export function CreateMenu({
           }}
         />
         <CreateItem
-          icon={ListTodo}
+          icon={Bulletlist}
           label="New task"
           onClick={() => {
             onNavigate("/tasks");
@@ -77,7 +77,7 @@ export function CreateMenu({
           }}
         />
         <CreateItem
-          icon={MessageCircle}
+          icon={Message}
           label="New message"
           onClick={() => {
             onNavigate("/messages");
@@ -105,7 +105,7 @@ function CreateItem({
       className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-[12px] text-[#596275] hover:bg-[#f4f5f8]"
       onClick={onClick}
     >
-      <Icon className="size-4 text-[#8b94a5]" strokeWidth={1.8} />
+      <Icon className="size-4 text-[#8b94a5]" />
       {label}
     </button>
   );

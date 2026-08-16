@@ -1,6 +1,6 @@
 "use client";
 
-import { AtSign, Bell, Check, Flag, Paperclip } from "lucide-react";
+import { AtSign, Attachment, Bell, Check, Flag } from "pixelarticons/react";
 import { useEffect, useRef } from "react";
 
 import { PRIORITY_META, STATUS_META } from "@/lib/task-meta";
@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 export function PriorityFlag({ priority }: { priority: TaskPriority }) {
   if (priority === "none") {
-    return <Flag className="size-3.5 text-[#d3d5da]" strokeWidth={2} />;
+    return <Flag className="size-3.5 text-[#d3d5da]" />;
   }
   const colors: Record<Exclude<TaskPriority, "none">, string> = {
     urgent: "text-[#e5484d]",
@@ -17,7 +17,7 @@ export function PriorityFlag({ priority }: { priority: TaskPriority }) {
     medium: "text-[#c2913c]",
     low: "text-[#8f97a8]",
   };
-  return <Flag className={cn("size-3.5", colors[priority])} strokeWidth={2} />;
+  return <Flag className={cn("size-3.5", colors[priority])} />;
 }
 
 export function StatusPill({
@@ -149,7 +149,7 @@ export function TaskCheckbox({
       )}
       onClick={onToggle}
     >
-      {done ? <Check className="size-3" strokeWidth={3} /> : null}
+      {done ? <Check className="size-3" /> : null}
     </button>
   );
 }
@@ -191,7 +191,7 @@ export function TaskIndicators({
           className="flex items-center gap-0.5"
           title={`${attachmentCount} attachment${attachmentCount === 1 ? "" : "s"}`}
         >
-          <Paperclip className="size-3" />
+          <Attachment className="size-3" />
           <span className="text-[10px]">{attachmentCount}</span>
         </span>
       ) : null}

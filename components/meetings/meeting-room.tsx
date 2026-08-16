@@ -1,24 +1,23 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
-  Clock3,
+  Clock,
+  Close,
   Copy,
+  EyeOff,
+  Logout,
+  MapPin,
   Mic,
   MicOff,
-  MonitorUp,
+  Monitor,
   MoreHorizontal,
-  PhoneOff,
-  Pin,
-  PinOff,
   Presentation,
-  Share2,
+  Share,
   Users,
   Video,
-  VideoOff,
-  X,
-} from "lucide-react";
-import { useRouter } from "next/navigation";
+} from "pixelarticons/react";
 import { useEffect, useRef, useState } from "react";
 import {
   endMeeting,
@@ -527,7 +526,7 @@ function MeetingRoom({ meetingId }: { meetingId: string }) {
               {meeting?.title ?? "Meeting"}
             </h1>
             <p className="flex items-center gap-1.5 text-[11px] text-[#8b93a7]">
-              <Clock3 className="size-3" />
+              <Clock className="size-3" />
               {formatElapsed(elapsed)}
             </p>
           </div>
@@ -650,7 +649,7 @@ function MeetingRoom({ meetingId }: { meetingId: string }) {
               {controls.cameraOn ? (
                 <Video className="size-4" />
               ) : (
-                <VideoOff className="size-4" />
+                <EyeOff className="size-4" />
               )}
             </ControlButton>
             <ControlButton
@@ -667,7 +666,7 @@ function MeetingRoom({ meetingId }: { meetingId: string }) {
               {controls.sharing ? (
                 <Presentation className="size-4" />
               ) : (
-                <MonitorUp className="size-4" />
+                <Monitor className="size-4" />
               )}
             </ControlButton>
             <button
@@ -676,7 +675,7 @@ function MeetingRoom({ meetingId }: { meetingId: string }) {
               className="flex size-11 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
               onClick={leave}
             >
-              <PhoneOff className="size-4" />
+              <Logout className="size-4" />
             </button>
             {meeting?.isHost ? (
               <button
@@ -845,7 +844,7 @@ function RemoteTile({
       {onPinToggle ? (
         <button
           type="button"
-          aria-label={pinned ? `Unpin ${peer.name}` : `Pin ${peer.name}`}
+          aria-label={pinned ? `Unpin ${peer.name}` : `MapPin ${peer.name}`}
           className={cn(
             "absolute right-3 top-3 flex size-8 items-center justify-center rounded-lg bg-[#0b0d12]/70 text-[#c3c9d9] backdrop-blur-sm transition-colors hover:bg-[#0b0d12] hover:text-white",
             pinned
@@ -854,7 +853,11 @@ function RemoteTile({
           )}
           onClick={onPinToggle}
         >
-          {pinned ? <PinOff className="size-4" /> : <Pin className="size-4" />}
+          {pinned ? (
+            <MapPin className="size-4" />
+          ) : (
+            <MapPin className="size-4" />
+          )}
         </button>
       ) : null}
       <div className="absolute inset-x-0 bottom-0 flex items-center justify-between p-3">
@@ -921,7 +924,7 @@ function ParticipantsPanel({
             className="rounded-lg p-1 text-[#8b93a7] transition-colors hover:bg-white/10 hover:text-white lg:hidden"
             onClick={onClose}
           >
-            <X className="size-4" />
+            <Close className="size-4" />
           </button>
         </div>
       </div>
@@ -986,9 +989,9 @@ function ParticipantRow({
         ) : null}
       </span>
       <span className="flex items-center gap-1.5 text-[#6d7488]">
-        {sharing ? <Share2 className="size-3.5 text-[#aeb7ff]" /> : null}
+        {sharing ? <Share className="size-3.5 text-[#aeb7ff]" /> : null}
         {muted ? <MicOff className="size-3.5" /> : null}
-        {!cameraOn ? <VideoOff className="size-3.5" /> : null}
+        {!cameraOn ? <EyeOff className="size-3.5" /> : null}
       </span>
     </li>
   );

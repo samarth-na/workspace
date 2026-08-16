@@ -1,6 +1,6 @@
 "use client";
 
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal } from "pixelarticons/react";
 import { cn } from "@/lib/utils";
 
 export type MenuItemDef = {
@@ -58,7 +58,7 @@ function FileMenu({
                   item.onSelect();
                 }}
               >
-                <item.icon className="size-4" strokeWidth={1.8} />
+                <item.icon className="size-4" />
                 {item.label}
               </button>
             ))}

@@ -1,15 +1,15 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
-  ArrowUpRight,
-  CalendarClock,
-  Clock3,
-  Loader2,
+  CalendarRange,
+  Clock,
+  ExternalLink,
+  Loader,
   MoreVertical,
   Phone,
   Video,
-} from "lucide-react";
-import { useRouter } from "next/navigation";
+} from "pixelarticons/react";
 import { useEffect, useState } from "react";
 import { endMeeting, fetchMeetings } from "@/components/meetings/meeting-api";
 import { NewMeetingDialog } from "@/components/meetings/new-meeting-dialog";
@@ -104,7 +104,7 @@ function CallsView() {
       ) : null}
       {loading ? (
         <div className="flex h-40 items-center justify-center">
-          <Loader2 className="size-5 animate-spin text-[#8b94a5]" />
+          <Loader className="size-5 animate-spin text-[#8b94a5]" />
         </div>
       ) : (
         <div className="grid max-w-5xl gap-4 lg:grid-cols-[1.2fr_0.8fr]">
@@ -138,7 +138,7 @@ function CallsView() {
             </section>
             <section>
               <h2 className="mb-2.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-[#8b94a5]">
-                <CalendarClock className="size-3" />
+                <CalendarRange className="size-3" />
                 Upcoming
               </h2>
               {upcoming.length === 0 ? (
@@ -164,7 +164,7 @@ function CallsView() {
                 <h3 className="text-[14px] font-semibold text-[#3d4658]">
                   Recent calls
                 </h3>
-                <Clock3 className="size-4 text-[#9aa1ad]" />
+                <Clock className="size-4 text-[#9aa1ad]" />
               </div>
               <div className="mt-4 divide-y divide-[#eff0f3]">
                 {recent.length === 0 ? (
@@ -242,7 +242,7 @@ function LiveMeetingCard({
               onClick={onEnd}
             >
               {busy ? (
-                <Loader2 className="size-3.5 animate-spin" />
+                <Loader className="size-3.5 animate-spin" />
               ) : (
                 <Phone className="size-3.5" />
               )}
@@ -253,7 +253,7 @@ function LiveMeetingCard({
             className="h-9 bg-white px-4 text-[12px] font-semibold text-[#2d3855] hover:bg-[#f0f1ff]"
             onClick={onJoin}
           >
-            Join call <ArrowUpRight className="size-3.5" />
+            Join call <ExternalLink className="size-3.5" />
           </Button>
         </div>
       </div>

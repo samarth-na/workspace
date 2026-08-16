@@ -1,15 +1,15 @@
 "use client";
 
 import {
-  ArrowUpRight,
-  Command,
+  Close,
+  ExternalLink,
   FileText,
-  MessageCircle,
+  Message,
   Search,
+  Terminal,
   Users,
   Video,
-  X,
-} from "lucide-react";
+} from "pixelarticons/react";
 import { useEffect, useRef, useState } from "react";
 
 const searchResults: {
@@ -25,7 +25,7 @@ const searchResults: {
     href: "/files",
   },
   {
-    icon: MessageCircle,
+    icon: Message,
     title: "# product",
     detail: "Channel · 3 unread messages",
     href: "/messages",
@@ -110,7 +110,7 @@ export function SearchDialog({
             className="rounded-md p-1 text-[#9aa1ad] hover:bg-[#f2f3f6]"
             onClick={onClose}
           >
-            <X className="size-4" />
+            <Close className="size-4" />
           </button>
         </div>
         <div className="p-3">
@@ -140,7 +140,7 @@ export function SearchDialog({
         <div className="flex items-center justify-between border-t border-[#eff0f3] px-4 py-3 text-[11px] text-[#9aa1ad]">
           <span>Search everything in Cedar & Co.</span>
           <span className="flex items-center gap-1">
-            <Command className="size-3" /> Enter to open
+            <Terminal className="size-3" /> Enter to open
           </span>
         </div>
       </div>
@@ -176,7 +176,7 @@ function SearchResult({
           {detail}
         </span>
       </span>
-      <ArrowUpRight className="size-3.5 text-[#b0b5bf]" />
+      <ExternalLink className="size-3.5 text-[#b0b5bf]" />
     </button>
   );
 }

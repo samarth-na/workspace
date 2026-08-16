@@ -1,7 +1,7 @@
 "use client";
 
-import { Check, Loader2, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { Check, Close, Loader, Search } from "pixelarticons/react";
 import { useEffect, useState } from "react";
 import { searchUsers } from "@/components/chat/chat-api";
 import { createMeeting } from "@/components/meetings/meeting-api";
@@ -93,7 +93,7 @@ function NewMeetingDialog({
             className="rounded-lg p-1.5 text-[#8b94a5] hover:bg-[#f4f5f8]"
             onClick={onClose}
           >
-            <X className="size-4" />
+            <Close className="size-4" />
           </button>
         </div>
         <p className="mt-1 text-[12px] text-[#788193]">
@@ -203,7 +203,7 @@ function NewMeetingDialog({
                         )
                       }
                     >
-                      <X className="size-3" />
+                      <Close className="size-3" />
                     </button>
                   </li>
                 ))}
@@ -233,9 +233,7 @@ function NewMeetingDialog({
               disabled={!canSubmit}
               className="bg-[#5b64d6] text-[12px] font-semibold hover:bg-[#4e57c5]"
             >
-              {submitting ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : null}
+              {submitting ? <Loader className="size-3.5 animate-spin" /> : null}
               {submitting ? "Creating…" : "Create & join"}
             </Button>
           </div>

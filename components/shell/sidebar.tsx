@@ -1,38 +1,35 @@
 "use client";
 
+import Link from "next/link";
 import {
-  ArrowUpRight,
+  Bulletlist,
   ChevronDown,
-  CircleHelp,
-  FileText,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  type FileText,
   Folder,
   Home,
-  Image,
-  LayoutDashboard,
-  ListTodo,
-  MessageCircle,
-  MoreHorizontal,
-  PanelLeftClose,
-  PanelLeftOpen,
-  PenLine,
+  InfoBox,
+  Message,
+  Pencil,
   Plus,
   Settings2,
-  Table2,
   Users,
   Video,
-} from "lucide-react";
-import Link from "next/link";
+} from "pixelarticons/react";
 import { useEffect, useState } from "react";
 import { NewMeetingDialog } from "@/components/meetings/new-meeting-dialog";
 import { Avatar } from "@/components/shared/avatar";
 import { MeetingSidebarItem } from "@/components/shell/meeting-sidebar-item";
+import type { RecentItemDto } from "@/lib/recents-data";
 import { cn } from "@/lib/utils";
 import { useShell } from "./shell-context";
 
 const NAV_ITEMS: { href: string; icon: typeof FileText; label: string }[] = [
   { href: "/home", icon: Home, label: "Home" },
-  { href: "/tasks", icon: ListTodo, label: "Tasks" },
-  { href: "/messages", icon: MessageCircle, label: "Messages" },
+  { href: "/tasks", icon: Bulletlist, label: "Tasks" },
+  { href: "/messages", icon: Message, label: "Messages" },
   { href: "/files", icon: Folder, label: "Files" },
   { href: "/calls", icon: Video, label: "Calls" },
   { href: "/people", icon: Users, label: "People" },
@@ -56,13 +53,24 @@ export function DesktopSidebar({
 }) {
   const { workspaceName, workspaceLogo, notify, navigate } = useShell();
   const [collapsed, setCollapsed] = useState(false);
+  const [meetingsOpen, setMeetingsOpen] = useState(true);
   const [showNewMeeting, setShowNewMeeting] = useState(false);
 
   useEffect(() => {
     if (window.localStorage.getItem("cw-sidebar-collapsed") === "1") {
       setCollapsed(true);
     }
+    if (window.localStorage.getItem("cw-meetings-open") === "0") {
+      setMeetingsOpen(false);
+    }
   }, []);
+
+  const toggleMeetings = () => {
+    setMeetingsOpen((current) => {
+      window.localStorage.setItem("cw-meetings-open", current ? "0" : "1");
+      return !current;
+    });
+  };
 
   const toggleCollapsed = () => {
     setCollapsed((current) => {
@@ -126,9 +134,9 @@ export function DesktopSidebar({
             onClick={toggleCollapsed}
           >
             {collapsed ? (
-              <PanelLeftOpen className="size-[15px]" />
+              <ChevronRight className="size-[15px]" />
             ) : (
-              <PanelLeftClose className="size-[15px]" />
+              <ChevronLeft className="size-[15px]" />
             )}
           </button>
         </div>
@@ -136,7 +144,7 @@ export function DesktopSidebar({
 
       <nav
         aria-label="Primary"
-        className={collapsed ? "mb-5 space-y-1" : "mb-5 space-y-0.5"}
+        className={collapsed ? "mb-5 space-y-0.5" : "mb-5"}
       >
         {NAV_ITEMS.map((item) => (
           <SidebarLink
@@ -157,80 +165,53 @@ export function DesktopSidebar({
 
       {collapsed ? null : (
         <>
-          <div className="rounded-xl bg-[#e2f3ea] px-2.5 py-2">
+          <div className="rounded-xl bg-[#e9e9ea] px-2.5 py-2">
             <div className="flex items-center justify-between text-[13px] font-medium text-[#4f4f52]">
               <button
                 type="button"
+                aria-expanded={meetingsOpen}
                 className="flex items-center gap-1.5 hover:text-[#2e2e31]"
-                onClick={() => navigate("/meetings")}
+                onClick={toggleMeetings}
               >
-                <ChevronDown className="size-3.5 text-[#949497]" /> Meetings
+                <ChevronDown
+                  className={cn(
+                    "size-3.5 text-[#949497] transition-transform duration-150",
+                    !meetingsOpen && "-rotate-90",
+                  )}
+                />{" "}
+                Meetings
               </button>
-              <MoreHorizontal className="size-4 text-[#929295]" />
             </div>
-            <MeetingSidebarItem onOpen={(href) => navigate(href)} />
-            <button
-              type="button"
-              className="flex w-full items-center gap-3 px-1.5 py-2 text-left text-[#99999b] hover:text-[#5b5b5e]"
-              onClick={() => setShowNewMeeting(true)}
-            >
-              <Plus className="size-4" />{" "}
-              <span className="text-[13px]">New meeting note</span>
-            </button>
-            <button
-              type="button"
-              className="flex w-full items-center gap-3 px-1.5 py-1 text-left text-[#99999b] hover:text-[#5b5b5e]"
-              onClick={() => navigate("/meetings")}
-            >
-              <ArrowUpRight className="size-4" />{" "}
-              <span className="text-[13px]">View all</span>
-            </button>
+            {meetingsOpen ? (
+              <>
+                <MeetingSidebarItem onOpen={(href) => navigate(href)} />
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-3 px-1.5 py-2 text-left text-[#2e2e31] hover:bg-[#e9e9ea] hover:font-medium"
+                  onClick={() => setShowNewMeeting(true)}
+                >
+                  <Plus className="size-4" />{" "}
+                  <span className="text-[13px]">New meeting note</span>
+                </button>
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-3 px-1.5 py-1 text-left text-[#2e2e31] hover:bg-[#e9e9ea] hover:font-medium"
+                  onClick={() => navigate("/meetings")}
+                >
+                  <ExternalLink className="size-4" />{" "}
+                  <span className="text-[13px]">View all</span>
+                </button>
+              </>
+            ) : null}
           </div>
 
           <div className="workspace-sidebar-scroll mt-6 flex-1 overflow-y-auto pr-1">
-            <SidebarGroup label="Recents">
-              <SidebarLink
-                icon={LayoutDashboard}
-                label="Dashboard"
-                href="/home"
-                active={isActive("/home", pathname)}
-              />
-              <SidebarLink
-                icon={FileText}
-                label="Q3 product brief"
-                href="/files"
-                onClick={() => notify("Opening Q3 product brief")}
-              />
-              <SidebarLink
-                icon={Image}
-                label="Launch moodboard"
-                href="/files"
-                onClick={() => notify("Opening Launch moodboard")}
-              />
-              <SidebarLink
-                icon={Table2}
-                label="Sprint planning"
-                href="/files"
-                onClick={() => notify("Opening Sprint planning")}
-              />
-              <SidebarLink
-                icon={Folder}
-                label="Shared files"
-                href="/files"
-                active={isActive("/files", pathname)}
-              />
-              <SidebarLink
-                icon={MessageCircle}
-                label="# product"
-                href="/messages/conv-channel-product"
-                active={isActive("/messages", pathname)}
-              />
-            </SidebarGroup>
+            <RecentsGroup pathname={pathname} />
           </div>
 
           <div className="mt-auto border-t border-[#e9ebef] pt-3">
             <SidebarLink
-              icon={CircleHelp}
+              icon={InfoBox}
               label="Help center"
               onClick={() => notify("Help center opened")}
             />
@@ -263,6 +244,7 @@ export function MobileSidebar({
   onView: (href: string) => void;
 }) {
   const { userName, userImage, workspaceName, notify } = useShell();
+  const [meetingsOpen, setMeetingsOpen] = useState(true);
   const [showNewMeeting, setShowNewMeeting] = useState(false);
   return (
     <aside className="relative z-10 flex h-full w-[min(88vw,360px)] flex-col bg-[#f8f8f9] px-3 py-4 shadow-[12px_0_30px_rgba(32,32,36,0.1)]">
@@ -294,7 +276,7 @@ export function MobileSidebar({
           <ChevronDown className="size-4 rotate-90" />
         </button>
       </div>
-      <nav aria-label="Primary" className="mb-5 space-y-0.5">
+      <nav aria-label="Primary" className="mb-5">
         {NAV_ITEMS.map((item) => (
           <SidebarLink
             key={item.href}
@@ -311,74 +293,54 @@ export function MobileSidebar({
           />
         ))}
       </nav>
-      <div className="rounded-xl bg-[#e2f3ea] px-2.5 py-2">
+      <div className="rounded-xl bg-[#ececed] px-2.5 py-2">
         <div className="flex items-center justify-between text-[14px] text-[#4d4d50]">
           <button
             type="button"
+            aria-expanded={meetingsOpen}
             className="flex items-center gap-1.5 hover:text-[#2e2e31]"
-            onClick={() => onView("/meetings")}
+            onClick={() => setMeetingsOpen((current) => !current)}
           >
-            <ChevronDown className="size-3.5 text-[#949497]" /> Meetings
+            <ChevronDown
+              className={cn(
+                "size-3.5 text-[#949497] transition-transform duration-150",
+                !meetingsOpen && "-rotate-90",
+              )}
+            />{" "}
+            Meetings
           </button>
-          <MoreHorizontal className="size-4 text-[#929295]" />
         </div>
-        <MeetingSidebarItem mobile onOpen={(href) => onView(href)} />
-        <button
-          type="button"
-          className="flex w-full items-center gap-3 px-1.5 py-2 text-left text-[#a0a0a3] hover:text-[#626265]"
-          onClick={() => setShowNewMeeting(true)}
-        >
-          <Plus className="size-4" />
-          <span className="text-[14px]">New meeting note</span>
-        </button>
-        <button
-          type="button"
-          className="flex w-full items-center gap-3 px-1.5 py-1 text-left text-[#a0a0a3] hover:text-[#626265]"
-          onClick={() => onView("/meetings")}
-        >
-          <ArrowUpRight className="size-4" />
-          <span className="text-[14px]">View all</span>
-        </button>
+        {meetingsOpen ? (
+          <>
+            <MeetingSidebarItem mobile onOpen={(href) => onView(href)} />
+            <button
+              type="button"
+              className="flex w-full items-center gap-3 px-1.5 py-2 text-left text-[#2e2e31] hover:bg-[#ececed] hover:font-medium"
+              onClick={() => setShowNewMeeting(true)}
+            >
+              <Plus className="size-4" />
+              <span className="text-[14px]">New meeting note</span>
+            </button>
+            <button
+              type="button"
+              className="flex w-full items-center gap-3 px-1.5 py-1 text-left text-[#2e2e31] hover:bg-[#ececed] hover:font-medium"
+              onClick={() => onView("/meetings")}
+            >
+              <ExternalLink className="size-4" />
+              <span className="text-[14px]">View all</span>
+            </button>
+          </>
+        ) : null}
       </div>
       <div className="workspace-sidebar-scroll mt-7 flex-1 overflow-y-auto px-1">
-        <SidebarGroup label="Recents">
-          <SidebarLink
-            icon={LayoutDashboard}
-            label="Dashboard"
-            href="/home"
-            active={isActive("/home", pathname)}
-            onClick={onClose}
-          />
-          <SidebarLink
-            icon={FileText}
-            label="Q3 product brief"
-            onClick={() => onView("/files")}
-          />
-          <SidebarLink
-            icon={Image}
-            label="Launch moodboard"
-            onClick={() => onView("/files")}
-          />
-          <SidebarLink
-            icon={Table2}
-            label="Sprint planning"
-            onClick={() => onView("/files")}
-          />
-          <SidebarLink
-            icon={MessageCircle}
-            label="# product"
-            href="/messages/conv-channel-product"
-            active={isActive("/messages", pathname)}
-            onClick={onClose}
-          />
-        </SidebarGroup>
+        <RecentsGroup pathname={pathname} onOpen={onClose} />
       </div>
       <button
         type="button"
         className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-full border border-[#dedee0] bg-white text-[14px] text-[#555559] shadow-[0_2px_7px_rgba(0,0,0,0.05)] hover:bg-[#fdfdfd]"
         onClick={onCreate}
       >
-        <PenLine className="size-4" /> New
+        <Pencil className="size-4" /> New
       </button>
       {showNewMeeting ? (
         <NewMeetingDialog
@@ -390,11 +352,82 @@ export function MobileSidebar({
   );
 }
 
+const RECENT_ICONS: Record<RecentItemDto["type"], typeof FileText> = {
+  conversation: Message,
+  meeting: Video,
+  folder: Folder,
+};
+
+function isRecentActive(
+  item: RecentItemDto,
+  pathname: string,
+  folderParam: string | null,
+) {
+  if (item.type === "folder") {
+    return pathname === "/files" && folderParam === item.itemId;
+  }
+  return pathname === item.href || pathname.startsWith(`${item.href}/`);
+}
+
+function useRecents(pathname: string): RecentItemDto[] {
+  const [items, setItems] = useState<RecentItemDto[]>([]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: refetch recents when the route changes
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/recents")
+      .then((res) => (res.ok ? res.json() : { recents: [] }))
+      .then((data: { recents?: RecentItemDto[] }) => {
+        if (!cancelled) setItems(data.recents ?? []);
+      })
+      .catch(() => {
+        // sidebar stays quiet if recents cannot load
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
+  return items;
+}
+
+function RecentsGroup({
+  pathname,
+  collapsed = false,
+  onOpen,
+}: {
+  pathname: string;
+  collapsed?: boolean;
+  onOpen?: () => void;
+}) {
+  const recents = useRecents(pathname);
+  const [folderParam, setFolderParam] = useState<string | null>(null);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-read the folder query param when the route changes
+  useEffect(() => {
+    setFolderParam(new URLSearchParams(window.location.search).get("folder"));
+  }, [pathname]);
+
+  if (collapsed || recents.length === 0) return null;
+
+  return (
+    <SidebarGroup label="Recents">
+      {recents.map((item) => (
+        <SidebarLink
+          key={item.id}
+          icon={RECENT_ICONS[item.type]}
+          label={item.title}
+          href={item.href}
+          active={isRecentActive(item, pathname, folderParam)}
+          onClick={onOpen}
+        />
+      ))}
+    </SidebarGroup>
+  );
+}
+
 function SidebarLink({
   icon: Icon,
   label,
   active = false,
-  muted = false,
   dot = false,
   collapsed = false,
   href,
@@ -403,31 +436,24 @@ function SidebarLink({
   icon: typeof FileText;
   label: string;
   active?: boolean;
-  muted?: boolean;
   dot?: boolean;
   collapsed?: boolean;
   href?: string;
   onClick?: () => void;
 }) {
   const className = cn(
-    "flex h-8 w-full items-center rounded-lg text-left text-[13px] transition-colors",
+    "flex h-8 w-full items-center rounded-lg text-left text-[13px] text-[#2e2e31] transition-colors",
     collapsed ? "justify-center" : "gap-3 px-3",
     active
-      ? "bg-[#e5e5e6] font-medium text-[#2e2e31]"
-      : muted
-        ? "text-[#9a9a9d] hover:bg-[#f0f0f1] hover:text-[#5b5b5e]"
-        : "text-[#656568] hover:bg-[#e9e9ea] hover:text-[#2e2e31]",
+      ? "bg-[#e5e5e6] font-medium"
+      : "hover:bg-[#e9e9ea] hover:font-medium",
   );
   const content = (
     <>
-      <Icon
-        className={cn(
-          "size-[17px] shrink-0",
-          active ? "text-[#6e6e72]" : "text-[#969699]",
-        )}
-        strokeWidth={1.8}
-      />
-      {collapsed ? null : label}
+      <Icon className="size-[17px] shrink-0 text-[#45454a]" />
+      {collapsed ? null : (
+        <span className="min-w-0 flex-1 truncate">{label}</span>
+      )}
       {dot ? (
         <span
           className={cn(
@@ -476,7 +502,7 @@ function SidebarGroup({
       <h2 className="mb-2 px-3 text-[12px] font-medium text-[#9a9a9d]">
         {label}
       </h2>
-      <div className="space-y-0.5">{children}</div>
+      <div>{children}</div>
     </section>
   );
 }

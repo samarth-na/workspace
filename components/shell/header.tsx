@@ -1,6 +1,6 @@
 "use client";
 
-import { Command, Search } from "lucide-react";
+import { Search, Terminal } from "pixelarticons/react";
 import { Avatar } from "@/components/shared/avatar";
 import { useShell } from "./shell-context";
 
@@ -54,7 +54,7 @@ export function Header({
           <Search className="size-3.5" />
           <span>Search</span>
           <span className="ml-3 flex items-center gap-0.5 rounded border border-[#e6e8ec] px-1 text-[10px] text-[#9aa1ad]">
-            <Command className="size-2.5" /> K
+            <Terminal className="size-2.5" /> K
           </span>
         </button>
         <button

@@ -1,23 +1,23 @@
 "use client";
 
+import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import {
   ArrowDown,
+  ArrowsVertical,
   ArrowUp,
-  ArrowUpDown,
   ChevronRight,
+  Close,
   Download,
   FileText,
-  FolderClosed,
-  FolderOpen,
+  Folder,
   FolderPlus,
-  Grid2X2,
-  Rows3,
+  Grid2x22,
+  ListBox,
   Search,
-  Trash2,
-  UploadCloud,
-  X,
-} from "lucide-react";
-import Image from "next/image";
+  Trash,
+  Upload,
+} from "pixelarticons/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FileGlyph,
@@ -206,9 +206,12 @@ function FilesView() {
     }
   }, []);
 
+  const searchParams = useSearchParams();
+  const initialFolder = searchParams.get("folder");
+
   useEffect(() => {
-    load(null);
-  }, [load]);
+    load(initialFolder && initialFolder !== "all" ? initialFolder : null);
+  }, [load, initialFolder]);
 
   const navigate = useCallback(
     (target: string | null) => {
@@ -587,12 +590,12 @@ function FilesView() {
           onSelect: () => beginRename(entry),
         },
         {
-          icon: FolderOpen,
+          icon: Folder,
           label: "Move to…",
           onSelect: () => openMove(entry),
         },
         {
-          icon: Trash2,
+          icon: Trash,
           label: "Delete",
           danger: true,
           onSelect: () => deleteEntries([entry]),
@@ -670,7 +673,7 @@ function FilesView() {
               </span>
             ))}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <label className="relative">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-[#a1a8b5]" />
               <input
@@ -697,7 +700,7 @@ function FilesView() {
                 className="flex h-8 items-center gap-1.5 rounded-lg border border-[#e2e4e9] bg-white px-2.5 text-[12px] font-medium text-[#596275] transition-colors hover:bg-[#f6f7f9]"
                 onClick={() => setSortMenuOpen((prev) => !prev)}
               >
-                <ArrowUpDown className="size-3.5 text-[#8b94a5]" />
+                <ArrowsVertical className="size-3.5 text-[#8b94a5]" />
                 <span className="hidden sm:inline">
                   {SORT_OPTIONS.find((o) => o.key === sort.key)?.label}
                 </span>
@@ -738,13 +741,13 @@ function FilesView() {
             </div>
             <div className="flex rounded-lg border border-[#e2e4e9] bg-white p-0.5">
               <ViewToggle
-                icon={Rows3}
+                icon={ListBox}
                 label="List view"
                 active={view === "compact"}
                 onClick={() => setView("compact")}
               />
               <ViewToggle
-                icon={Grid2X2}
+                icon={Grid2x22}
                 label="Grid view"
                 active={view === "grid"}
                 onClick={() => setView("grid")}
@@ -760,7 +763,7 @@ function FilesView() {
                 key={task.id}
                 className="flex items-center gap-3 rounded-xl border border-[#e5e7ec] bg-white px-4 py-2.5"
               >
-                <UploadCloud className="size-4 shrink-0 text-[#8b94a5]" />
+                <Upload className="size-4 shrink-0 text-[#8b94a5]" />
                 <span className="min-w-0 flex-1 truncate text-[12px] text-[#596275]">
                   {task.name}
                 </span>
@@ -789,7 +792,7 @@ function FilesView() {
                 className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-[#c04a5d] transition-colors hover:bg-[#fdf0f2]"
                 onClick={() => deleteEntries(selectedEntries)}
               >
-                <Trash2 className="size-3.5" />
+                <Trash className="size-3.5" />
                 Delete
               </button>
               <button
@@ -797,7 +800,7 @@ function FilesView() {
                 className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-[#596275] transition-colors hover:bg-[#eef0f4]"
                 onClick={() => setSelected(new Set())}
               >
-                <X className="size-3.5" />
+                <Close className="size-3.5" />
                 Clear
               </button>
             </div>
@@ -806,7 +809,7 @@ function FilesView() {
 
         {creatingFolder && (
           <div className="mb-2 flex items-center gap-3 rounded-xl border border-[#5b64d6]/40 bg-white px-4 py-3">
-            <FolderClosed className="size-4 shrink-0 text-[#6670d5]" />
+            <Folder className="size-4 shrink-0 text-[#6670d5]" />
             <RenameInput
               value={newFolderName}
               onChange={setNewFolderName}
@@ -828,7 +831,7 @@ function FilesView() {
           </div>
         ) : entries.length === 0 ? (
           <div className="flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed border-[#e0e3ea] bg-white px-6 py-14 text-center">
-            <UploadCloud className="size-7 text-[#9aa1ad]" strokeWidth={1.5} />
+            <Upload className="size-7 text-[#9aa1ad]" />
             <div>
               <p className="text-[13px] font-semibold text-[#414a5d]">
                 {search.trim()
@@ -941,7 +944,7 @@ function ViewToggle({
   active,
   onClick,
 }: {
-  icon: typeof Rows3;
+  icon: typeof ListBox;
   label: string;
   active: boolean;
   onClick: () => void;

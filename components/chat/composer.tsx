@@ -1,6 +1,6 @@
 "use client";
 
-import { Send } from "lucide-react";
+import { Send } from "pixelarticons/react";
 import { useEffect, useRef } from "react";
 import { sendMessageRest } from "@/components/chat/chat-api";
 import {

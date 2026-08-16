@@ -1,7 +1,13 @@
 "use client";
 
-import { Camera, CircleHelp, Loader2, LogOut, Settings2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import {
+  Camera,
+  InfoBox,
+  Loader,
+  Logout,
+  Settings2,
+} from "pixelarticons/react";
 import { useRef, useState } from "react";
 
 import { Avatar } from "@/components/shared/avatar";
@@ -120,7 +126,7 @@ export function ProfileMenu({
               onClick={() => fileInputRef.current?.click()}
             >
               {uploading ? (
-                <Loader2 className="size-4 animate-spin text-[#9299a8]" />
+                <Loader className="size-4 animate-spin text-[#9299a8]" />
               ) : (
                 <Camera className="size-4 text-[#9299a8]" />
               )}
@@ -146,7 +152,7 @@ export function ProfileMenu({
           type="button"
           className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-[12px] text-[#596275] hover:bg-[#f4f5f8]"
         >
-          <CircleHelp className="size-4 text-[#9299a8]" />
+          <InfoBox className="size-4 text-[#9299a8]" />
           Keyboard shortcuts
         </button>
         {isSignedIn ? (
@@ -156,7 +162,7 @@ export function ProfileMenu({
             disabled={signingOut}
             className="mt-1 flex w-full items-center gap-3 rounded-lg border-t border-[#eef0f4] px-2.5 py-2.5 text-[12px] text-[#b42318] hover:bg-[#fdf0f0] disabled:opacity-50"
           >
-            <LogOut className="size-4" />
+            <Logout className="size-4" />
             {signingOut ? "Signing out…" : "Sign out"}
           </button>
         ) : null}

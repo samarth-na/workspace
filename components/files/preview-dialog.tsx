@@ -1,7 +1,12 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Download, X } from "lucide-react";
 import Image from "next/image";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Close,
+  Download,
+} from "pixelarticons/react";
 import { useCallback, useEffect, useState } from "react";
 import type { FileItem } from "@/lib/file-types";
 
@@ -79,7 +84,7 @@ function PreviewDialog({
               className="rounded-lg p-1.5 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
               onClick={onClose}
             >
-              <X className="size-4" />
+              <Close className="size-4" />
             </button>
           </div>
         </div>

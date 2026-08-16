@@ -1,13 +1,13 @@
 "use client";
 
 import {
-  CalendarDays,
-  ChartGantt,
-  List,
-  ListChecks,
+  Calendar,
+  ChartBarBig,
+  CheckDouble,
+  Grid2x3,
+  ListBox,
   Plus,
-  SquareKanban,
-} from "lucide-react";
+} from "pixelarticons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useShell } from "@/components/shell/shell-context";
 import { TaskDialog } from "@/components/tasks/task-dialog";
@@ -30,12 +30,12 @@ import { cn } from "@/lib/utils";
 
 type ViewId = "list" | "board" | "todo" | "calendar" | "timeline";
 
-const VIEWS: { id: ViewId; label: string; icon: typeof List }[] = [
-  { id: "list", label: "List", icon: List },
-  { id: "board", label: "Board", icon: SquareKanban },
-  { id: "todo", label: "Todo", icon: ListChecks },
-  { id: "calendar", label: "Calendar", icon: CalendarDays },
-  { id: "timeline", label: "Timeline", icon: ChartGantt },
+const VIEWS: { id: ViewId; label: string; icon: typeof ListBox }[] = [
+  { id: "list", label: "List", icon: ListBox },
+  { id: "board", label: "Board", icon: Grid2x3 },
+  { id: "todo", label: "Todo", icon: CheckDouble },
+  { id: "calendar", label: "Calendar", icon: Calendar },
+  { id: "timeline", label: "Timeline", icon: ChartBarBig },
 ];
 
 type CreateDefaults = {

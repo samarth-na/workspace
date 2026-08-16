@@ -1,7 +1,7 @@
 "use client";
 
-import { Check, Loader2, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { Check, Close, Loader, Search } from "pixelarticons/react";
 import { useEffect, useState } from "react";
 import { createDm, createGroup, searchUsers } from "@/components/chat/chat-api";
 import { useShell } from "@/components/shell/shell-context";
@@ -125,7 +125,7 @@ function NewConversationDialog({ onClose }: { onClose: () => void }) {
             onClick={onClose}
             className="rounded-md p-1.5 text-[#9aa1ad] transition-colors hover:bg-[#f2f3f6] hover:text-[#535dc9]"
           >
-            <X className="size-4" />
+            <Close className="size-4" />
           </button>
         </div>
 
@@ -174,7 +174,7 @@ function NewConversationDialog({ onClose }: { onClose: () => void }) {
               </p>
             ) : loading && users.length === 0 ? (
               <div className="flex items-center justify-center gap-2 py-8 text-[12px] text-[#9aa1ad]">
-                <Loader2 className="size-3.5 animate-spin" />
+                <Loader className="size-3.5 animate-spin" />
                 Searching...
               </div>
             ) : users.length === 0 ? (
@@ -260,7 +260,7 @@ function NewConversationDialog({ onClose }: { onClose: () => void }) {
                       onClick={() => toggleSelection(user.id)}
                       className="text-[#8b93c8] transition-colors hover:text-[#535dc9]"
                     >
-                      <X className="size-3" />
+                      <Close className="size-3" />
                     </button>
                   </span>
                 ))}
@@ -288,9 +288,7 @@ function NewConversationDialog({ onClose }: { onClose: () => void }) {
               onClick={createGroupChat}
               className="flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-[#5b64d6] text-[12px] font-semibold text-white transition-colors hover:bg-[#4e57c5] disabled:cursor-default disabled:opacity-40 disabled:hover:bg-[#5b64d6]"
             >
-              {submitting ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : null}
+              {submitting ? <Loader className="size-3.5 animate-spin" /> : null}
               Create group{selected.size > 0 ? ` (${selected.size})` : ""}
             </button>
           </div>

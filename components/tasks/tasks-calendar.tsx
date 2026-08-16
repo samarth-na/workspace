@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "pixelarticons/react";
 import { useMemo, useState } from "react";
 
 import { PriorityFlag } from "@/components/tasks/task-bits";

@@ -1,22 +1,22 @@
+import Link from "next/link";
 import {
   ArrowRight,
-  CalendarDays,
-  ChartGantt,
+  Bulletlist,
+  Calendar,
+  ChartBarBig,
   Check,
-  FolderOpen,
+  CheckDouble,
+  Folder,
+  Grid2x3,
   Inbox,
-  List,
-  ListChecks,
-  ListTodo,
-  MessageSquare,
+  ListBox,
+  MessageText,
   Mic,
-  MonitorUp,
+  Monitor,
   Search,
-  SquareKanban,
   Users,
   Video,
-} from "lucide-react";
-import Link from "next/link";
+} from "pixelarticons/react";
 import type * as React from "react";
 
 const AVATAR_BG = {
@@ -104,7 +104,7 @@ function CheckList({ items }: { items: string[] }) {
       {items.map((item) => (
         <li key={item} className="flex items-start gap-3">
           <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-[#e8f7ee] text-[#2f7d4f]">
-            <Check className="size-3" strokeWidth={2.5} />
+            <Check className="size-3" />
           </span>
           <span className="text-[15px] leading-relaxed text-[#3f4859]">
             {item}
@@ -130,7 +130,7 @@ function PrimaryLink({
       className={`inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#232b42] px-6 text-[14px] font-medium text-white transition-colors hover:bg-[#2f3957] ${className}`}
     >
       {children}
-      <ArrowRight className="size-4" strokeWidth={2} />
+      <ArrowRight className="size-4" />
     </Link>
   );
 }
@@ -188,7 +188,7 @@ function Nav() {
             className="flex h-9 items-center gap-1.5 rounded-lg bg-[#232b42] px-4 text-[13px] font-medium text-white transition-colors hover:bg-[#2f3957]"
           >
             Get started
-            <ArrowRight className="size-3.5" strokeWidth={2} />
+            <ArrowRight className="size-3.5" />
           </Link>
         </div>
       </div>
@@ -235,9 +235,9 @@ function MockMessage({
 function HeroMockup() {
   const navItems = [
     { icon: Inbox, label: "Inbox", badge: "3" },
-    { icon: MessageSquare, label: "Messages", active: true },
-    { icon: ListTodo, label: "Tasks" },
-    { icon: FolderOpen, label: "Files" },
+    { icon: MessageText, label: "Messages", active: true },
+    { icon: Bulletlist, label: "Tasks" },
+    { icon: Folder, label: "Files" },
     { icon: Video, label: "Calls" },
     { icon: Users, label: "People" },
   ];
@@ -273,7 +273,7 @@ function HeroMockup() {
                     : "text-[#8991a3]"
                 }`}
               >
-                <item.icon className="size-3.5" strokeWidth={1.8} />
+                <item.icon className="size-3.5" />
                 <span className="flex-1 truncate">{item.label}</span>
                 {item.badge ? (
                   <span className="rounded-full bg-[#9cb8f7] px-1.5 text-[10px] font-semibold text-[#31518e]">
@@ -365,7 +365,7 @@ function HeroMockup() {
       <div className="absolute top-24 -right-4 hidden w-60 rounded-xl border border-[#e3e5ea] bg-white p-3.5 shadow-[0_16px_40px_-12px_rgba(35,43,66,0.2)] lg:block xl:-right-10">
         <div className="flex items-start gap-2.5">
           <span className="mt-1 flex size-7 items-center justify-center rounded-lg bg-[#eef3fd] text-[#31518e]">
-            <ListTodo className="size-3.5" strokeWidth={1.8} />
+            <Bulletlist className="size-3.5" />
           </span>
           <div className="min-w-0 flex-1">
             <p className="truncate text-[12.5px] font-semibold text-[#232b42]">
@@ -387,7 +387,7 @@ function HeroMockup() {
       <div className="absolute -bottom-8 -right-4 hidden w-56 rounded-xl border border-[#e3e5ea] bg-white p-3.5 shadow-[0_16px_40px_-12px_rgba(35,43,66,0.22)] sm:block md:-right-10">
         <div className="flex items-center gap-2">
           <span className="flex size-7 items-center justify-center rounded-lg bg-[#e8f7ee] text-[#2f7d4f]">
-            <Video className="size-3.5" strokeWidth={1.8} />
+            <Video className="size-3.5" />
           </span>
           <div className="min-w-0">
             <p className="truncate text-[12px] font-semibold text-[#232b42]">
@@ -450,8 +450,8 @@ function Hero() {
 }
 
 const CAPABILITIES = [
-  { icon: MessageSquare, label: "Real-time messaging" },
-  { icon: ChartGantt, label: "Five task views" },
+  { icon: MessageText, label: "Real-time messaging" },
+  { icon: ChartBarBig, label: "Five task views" },
   { icon: Video, label: "Live team calls" },
   { icon: Users, label: "One shared directory" },
 ] as const;
@@ -465,10 +465,7 @@ function CapabilityStrip() {
             key={capability.label}
             className="flex items-center justify-center gap-2.5 py-5"
           >
-            <capability.icon
-              className="size-4 text-[#31518e]"
-              strokeWidth={1.8}
-            />
+            <capability.icon className="size-4 text-[#31518e]" />
             <span className="font-mono text-[11px] font-medium tracking-[0.1em] text-[#596275] uppercase">
               {capability.label}
             </span>
@@ -480,26 +477,26 @@ function CapabilityStrip() {
 }
 
 const FEATURES: {
-  icon: typeof MessageSquare;
+  icon: typeof MessageText;
   title: string;
   body: string;
   chips?: string[];
   wide?: boolean;
 }[] = [
   {
-    icon: MessageSquare,
+    icon: MessageText,
     title: "Messages",
     body: "Channels and direct messages that update in real time. Reactions, read state, and unread counts stay in sync for everyone.",
     chips: ["Channels", "DMs", "Reactions", "Unreads"],
     wide: true,
   },
   {
-    icon: ListTodo,
+    icon: Bulletlist,
     title: "Tasks",
     body: "Plan work your way — five views, from board to timeline.",
   },
   {
-    icon: FolderOpen,
+    icon: Folder,
     title: "Files",
     body: "Folders, uploads, and instant previews in one shared home.",
   },
@@ -546,7 +543,7 @@ function Features() {
               }`}
             >
               <span className="flex size-9 items-center justify-center rounded-lg bg-[#eef3fd] text-[#31518e]">
-                <feature.icon className="size-[17px]" strokeWidth={1.8} />
+                <feature.icon className="size-[17px]" />
               </span>
               <h3 className="mt-4 text-[15px] font-semibold text-[#232b42]">
                 {feature.title}
@@ -575,11 +572,11 @@ function Features() {
 }
 
 const TASK_VIEW_TABS = [
-  { icon: List, label: "List" },
-  { icon: SquareKanban, label: "Board" },
-  { icon: ListChecks, label: "Todo" },
-  { icon: CalendarDays, label: "Calendar" },
-  { icon: ChartGantt, label: "Timeline" },
+  { icon: ListBox, label: "List" },
+  { icon: Grid2x3, label: "Board" },
+  { icon: CheckDouble, label: "Todo" },
+  { icon: Calendar, label: "Calendar" },
+  { icon: ChartBarBig, label: "Timeline" },
 ] as const;
 
 const KANBAN_COLUMNS = [
@@ -669,7 +666,7 @@ function TasksSection() {
                       : "text-[#9aa1ad]"
                   }`}
                 >
-                  <tab.icon className="size-3.5" strokeWidth={1.8} />
+                  <tab.icon className="size-3.5" />
                   <span className="hidden sm:inline">{tab.label}</span>
                 </span>
               ))}
@@ -862,13 +859,13 @@ function CallsSection() {
             </div>
             <div className="mt-4 flex items-center justify-center gap-2 border-t border-[#eef0f4] pt-4">
               <span className="flex size-9 items-center justify-center rounded-full bg-[#f0f1f4] text-[#596275]">
-                <Mic className="size-4" strokeWidth={1.8} />
+                <Mic className="size-4" />
               </span>
               <span className="flex size-9 items-center justify-center rounded-full bg-[#f0f1f4] text-[#596275]">
-                <Video className="size-4" strokeWidth={1.8} />
+                <Video className="size-4" />
               </span>
               <span className="flex size-9 items-center justify-center rounded-full bg-[#f0f1f4] text-[#596275]">
-                <MonitorUp className="size-4" strokeWidth={1.8} />
+                <Monitor className="size-4" />
               </span>
               <span className="ml-2 flex h-9 items-center rounded-full bg-[#e5a1a5]/20 px-4 text-[12px] font-semibold text-[#b0555c]">
                 Leave

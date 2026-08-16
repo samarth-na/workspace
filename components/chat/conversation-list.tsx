@@ -1,8 +1,8 @@
 "use client";
 
-import { Hash, Plus, Search, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Hash, Plus, Search, Users } from "pixelarticons/react";
 import { useState } from "react";
 import { relativeTime } from "@/components/chat/chat-api";
 import { useShell } from "@/components/shell/shell-context";

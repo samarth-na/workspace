@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Folder, HardDrive } from "lucide-react";
+import { Check, Database, Folder } from "pixelarticons/react";
 import { useEffect, useMemo, useState } from "react";
 import type { FolderItem } from "@/lib/file-types";
 import { cn } from "@/lib/utils";
@@ -110,7 +110,7 @@ function MoveDialog({
         </p>
         <div className="mt-4 flex-1 space-y-0.5 overflow-y-auto pr-1">
           <MoveRow
-            icon={HardDrive}
+            icon={Database}
             label="All files"
             depth={0}
             disabled={false}
@@ -181,7 +181,7 @@ function MoveRow({
       )}
       style={{ paddingLeft: 8 + depth * 16 }}
     >
-      <Icon className="size-4 shrink-0 text-[#8b94a5]" strokeWidth={1.8} />
+      <Icon className="size-4 shrink-0 text-[#8b94a5]" />
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {disabled && <Check className="size-3.5 shrink-0 text-[#c4c9d4]" />}
     </button>

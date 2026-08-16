@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { Plus } from "pixelarticons/react";
 
 import {
   AssigneeAvatar,

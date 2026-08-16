@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, CalendarClock, Plus } from "lucide-react";
+import { Bell, CalendarRange, Plus } from "pixelarticons/react";
 import { useMemo, useState } from "react";
 
 import {
@@ -278,7 +278,7 @@ function GroupSection({
                       : "font-medium text-[#e5484d]",
                   )}
                 >
-                  <CalendarClock className="size-3" />
+                  <CalendarRange className="size-3" />
                   {dueLabel(task.dueDate)}
                 </span>
               ) : null}

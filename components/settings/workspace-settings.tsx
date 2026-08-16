@@ -1,14 +1,14 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
-  CalendarDays,
+  Calendar,
   Crown,
   Image as ImageIcon,
-  ShieldCheck,
-  Trash2,
+  Shield,
+  Trash,
   UserPlus,
-} from "lucide-react";
-import { useRouter } from "next/navigation";
+} from "pixelarticons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -404,7 +404,7 @@ export function WorkspaceSettings({
                         aria-label={`Remove ${member.name}`}
                         onClick={() => void removeMember(member.id)}
                       >
-                        <Trash2 className="size-3.5 text-[#b42318]" />
+                        <Trash className="size-3.5 text-[#b42318]" />
                       </Button>
                     </>
                   ) : (
@@ -417,7 +417,7 @@ export function WorkspaceSettings({
                       )}
                     >
                       {member.role === "admin" ? (
-                        <ShieldCheck className="size-3" />
+                        <Shield className="size-3" />
                       ) : null}
                       {member.role}
                     </span>
@@ -443,7 +443,7 @@ export function WorkspaceSettings({
               onClick={() => void deleteWorkspace()}
               disabled={loading === "deleting"}
             >
-              <Trash2 className="size-3.5" />
+              <Trash className="size-3.5" />
               {loading === "deleting" ? "Deleting…" : "Delete workspace"}
             </Button>
           </CardContent>
@@ -452,7 +452,7 @@ export function WorkspaceSettings({
 
       {role === "admin" ? null : (
         <p className="flex items-center gap-1.5 text-[12px] text-[#8991a3]">
-          <CalendarDays className="size-3.5" />
+          <Calendar className="size-3.5" />
           Ask a workspace admin to change settings you cannot edit.
         </p>
       )}

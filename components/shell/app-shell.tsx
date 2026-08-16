@@ -1,7 +1,7 @@
 "use client";
 
-import { Check } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
+import { Check } from "pixelarticons/react";
 import { useEffect, useRef, useState } from "react";
 import { CreateMenu } from "./create-menu";
 import { Header } from "./header";
