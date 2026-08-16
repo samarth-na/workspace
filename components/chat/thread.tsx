@@ -489,7 +489,7 @@ function MessageRow({
   return (
     <div className="group relative flex gap-3">
       {grouped ? (
-        <span className="size-8 shrink-0" aria-hidden="true" />
+        <span className="w-8 shrink-0" aria-hidden="true" />
       ) : (
         <span
           className="flex size-8 shrink-0 items-center justify-center rounded-full text-[9px] font-semibold text-[#514e9a]"
