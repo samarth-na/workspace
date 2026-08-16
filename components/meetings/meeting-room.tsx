@@ -12,18 +12,13 @@ import {
   Mic,
   MicOff,
   Monitor,
-  MoreHorizontal,
   Presentation,
   Share,
   Users,
   Video,
 } from "pixelarticons/react";
 import { useEffect, useRef, useState } from "react";
-import {
-  endMeeting,
-  fetchMeeting,
-  joinMeeting,
-} from "@/components/meetings/meeting-api";
+import { fetchMeeting, joinMeeting } from "@/components/meetings/meeting-api";
 import {
   createMeetingSocket,
   type MeetingSocket,
@@ -474,11 +469,6 @@ function MeetingRoom({ meetingId }: { meetingId: string }) {
     router.push("/calls");
   };
 
-  const endCall = async () => {
-    await endMeeting(meetingId);
-    leave();
-  };
-
   const copyInviteLink = () => {
     void navigator.clipboard
       .writeText(window.location.href)
@@ -672,21 +662,11 @@ function MeetingRoom({ meetingId }: { meetingId: string }) {
             <button
               type="button"
               aria-label="Leave call"
-              className="flex size-11 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
+              className="flex size-11 items-center justify-center rounded-full bg-[#e5484d] text-white transition-colors hover:bg-[#dc3d43]"
               onClick={leave}
             >
               <Logout className="size-4" />
             </button>
-            {meeting?.isHost ? (
-              <button
-                type="button"
-                aria-label="End call for everyone"
-                className="flex size-11 items-center justify-center rounded-full bg-[#e5484d] text-white transition-colors hover:bg-[#dc3d43]"
-                onClick={() => void endCall()}
-              >
-                <MoreHorizontal className="size-4" />
-              </button>
-            ) : null}
           </footer>
         </main>
         {showParticipants ? (

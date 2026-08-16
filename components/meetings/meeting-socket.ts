@@ -89,7 +89,7 @@ class RealtimeMeetingSocket implements MeetingSocket {
     event: K,
     payload: MeetingClientEvents[K],
   ): void {
-    if (this.ws?.readyState === WebSocket.OPEN) {
+    if (this.ws !== null && this.ws.readyState === 1) {
       this.ws.send(JSON.stringify({ type: event, payload }));
     }
   }
@@ -123,6 +123,7 @@ class RealtimeMeetingSocket implements MeetingSocket {
       this.scheduleReconnect();
       return;
     }
+    if (this.manuallyClosed) return;
 
     const url = `${REALTIME_URL}?room=${encodeURIComponent(`meeting:${this.meetingId}`)}&token=${encodeURIComponent(token)}`;
     const ws = new WebSocket(url);
