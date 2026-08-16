@@ -194,7 +194,7 @@ function MeetingRoom({ meetingId }: { meetingId: string }) {
       pendingIceRef.current.delete(peerId);
     };
 
-    socket = createMeetingSocket();
+    socket = createMeetingSocket(meetingId);
     socketRef.current = socket;
 
     socket.on("connect", () => {

@@ -55,6 +55,12 @@ Next.js 16 (App Router) + Bun, Drizzle on SQLite (libsql), Better Auth, Tailwind
 - Real-time runs over Socket.IO on a SEPARATE process: `bun run ws` (`ws/server.ts`, port 3001, env `WS_PORT`). The browser client (`components/chat/chat-socket.ts`) connects to `NEXT_PUBLIC_WS_URL` (default `ws://localhost:3001`) and falls back to REST sends + 5s polling when disconnected. After any `db:push`/`db:migrate`/reseed that replaces `sqlite.db`, restart `bun run ws` — a running process keeps a stale handle on the deleted file and writes silently go nowhere.
 - Chat UI in `components/chat/` (conversation list, thread, composer, reactions, new-message dialog); pages under `app/(workspace)/messages/`. Shared request/response + WS event types in `lib/chat-types.ts`; shared query/build helpers in `lib/chat-data.ts`.
 
+## Meetings (realtime)
+
+- Meeting signaling runs on a Cloudflare Worker in a SEPARATE repo (`cloud-workspace-realtime`): Durable Object per `meeting:<id>` room, native WebSocket protocol (`wss://<worker>/?room=meeting:<id>&token=...`), no Socket.IO. Local dev: `wrangler dev` in that repo serves `ws://localhost:8787`.
+- The browser client is `components/meetings/meeting-socket.ts` (`createMeetingSocket(meetingId)`); it fetches a short-lived JWT from `app/api/realtime/token/route.ts`, connects with `NEXT_PUBLIC_REALTIME_URL` (default `ws://localhost:8787`), and auto-reconnects with backoff. Meeting event shapes are in `lib/meeting-types.ts` (client/server payloads mirror the worker's `src/contract.ts`).
+- `WS_AUTH_SECRET` signs/verifies the token and must match between this repo's `.env` and the realtime repo's `.dev.vars` (or `wrangler secret put`). The worker also requires the browser `Origin` in its `ALLOWED_ORIGINS`.
+
 ## Environment
 
 - `.env` is required and gitignored; `.env.example` is committed. Populate `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, and the OAuth pairs above.
