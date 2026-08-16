@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { db } from "@/db";
@@ -15,7 +16,9 @@ import {
   fetchFolderPath,
   fetchFolderRow,
   fetchFolders,
+  fetchWorkspaceStorageUsed,
   toFileItem,
+  WORKSPACE_STORAGE_LIMIT,
 } from "@/lib/files-data";
 import { recordRecent } from "@/lib/recents-data";
 import { utapi } from "@/lib/uploadthing";
@@ -33,10 +36,11 @@ export async function GET(request: Request) {
   const folderParam = url.searchParams.get("folder");
   const all = folderParam === "all";
   const folderId = all ? null : folderParam;
-  const [files, folders, folderPath] = await Promise.all([
+  const [files, folders, folderPath, storageUsed] = await Promise.all([
     all ? fetchAllFiles(workspaceId) : fetchFiles(folderId, workspaceId),
     all ? [] : fetchFolders(folderId, workspaceId),
     all ? [] : fetchFolderPath(folderId, workspaceId),
+    workspaceId ? fetchWorkspaceStorageUsed(workspaceId) : Promise.resolve(0),
   ]);
   if (self && folderId) {
     const row = await fetchFolderRow(folderId, workspaceId);
@@ -55,6 +59,7 @@ export async function GET(request: Request) {
     folders,
     path: folderPath,
     isPreview: !self,
+    storage: { used: storageUsed, limit: WORKSPACE_STORAGE_LIMIT },
   });
 }
 
@@ -125,20 +130,37 @@ export async function POST(request: Request) {
   }
 
   const id = randomUUID();
-  const row = await db
-    .insert(file)
-    .values({
-      id,
-      name,
-      mimeType,
-      size,
-      storedName: key,
-      folderId,
-      workspaceId: context.workspaceId,
-      uploaderId: self.id,
-    })
-    .returning({ createdAt: file.createdAt });
-  const createdAt = row[0]?.createdAt ?? new Date();
+  let createdAt: Date | null = null;
+  const blocked = await db.transaction(async (tx) => {
+    const rows = await tx
+      .select({ total: sql<number>`coalesce(sum(${file.size}), 0)` })
+      .from(file)
+      .where(eq(file.workspaceId, context.workspaceId));
+    const used = rows[0]?.total ?? 0;
+    if (used + size > WORKSPACE_STORAGE_LIMIT) return true;
+    const inserted = await tx
+      .insert(file)
+      .values({
+        id,
+        name,
+        mimeType,
+        size,
+        storedName: key,
+        folderId,
+        workspaceId: context.workspaceId,
+        uploaderId: self.id,
+      })
+      .returning({ createdAt: file.createdAt });
+    createdAt = inserted[0]?.createdAt ?? new Date();
+    return false;
+  });
+  if (blocked) {
+    await utapi.deleteFiles(key).catch(() => {});
+    return NextResponse.json(
+      { error: "Workspace storage limit exceeded (100 MB)" },
+      { status: 400 },
+    );
+  }
 
   return NextResponse.json<UploadFileResponse>({
     file: toFileItem({
@@ -148,7 +170,7 @@ export async function POST(request: Request) {
       size,
       storedName: key,
       uploaderName: self.name,
-      createdAt,
+      createdAt: createdAt ?? new Date(),
     }),
   });
 }

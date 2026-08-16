@@ -1,10 +1,22 @@
-import { and, count, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { file, folder } from "@/db/files";
 import { user } from "@/db/schema";
 import type { FileItem, FolderItem, FolderPathItem } from "@/lib/file-types";
 import { fileUrl } from "@/lib/file-url";
+
+export const WORKSPACE_STORAGE_LIMIT = 100 * 1024 * 1024;
+
+export async function fetchWorkspaceStorageUsed(
+  workspaceId: string,
+): Promise<number> {
+  const rows = await db
+    .select({ total: sql<number>`coalesce(sum(${file.size}), 0)` })
+    .from(file)
+    .where(eq(file.workspaceId, workspaceId));
+  return rows[0]?.total ?? 0;
+}
 
 export async function fetchFiles(
   folderId: string | null,

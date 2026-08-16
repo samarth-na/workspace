@@ -8,6 +8,7 @@ import {
   ArrowUp,
   ChevronRight,
   Close,
+  Database,
   Download,
   FileText,
   Folder,
@@ -38,6 +39,7 @@ import type {
   FolderItem,
   FolderPathItem,
   UploadFileResponse,
+  WorkspaceStorage,
 } from "@/lib/file-types";
 import { useUploadThing } from "@/lib/uploadthing-client";
 import { cn } from "@/lib/utils";
@@ -165,6 +167,7 @@ function FilesView() {
   const [crumbs, setCrumbs] = useState<FolderPathItem[]>([]);
   const [folders, setFolders] = useState<FolderItem[]>([]);
   const [files, setFiles] = useState<FileItem[]>([]);
+  const [storage, setStorage] = useState<WorkspaceStorage | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPreview, setIsPreview] = useState(true);
   const [view, setView] = useState<ViewId>("grid");
@@ -201,6 +204,7 @@ function FilesView() {
       setCrumbs(data.path);
       setFolders(data.folders);
       setFiles(data.files);
+      setStorage(data.storage);
       setIsPreview(data.isPreview);
     } finally {
       setLoading(false);
@@ -295,6 +299,9 @@ function FilesView() {
           if (response.ok) {
             const data = (await response.json()) as UploadFileResponse;
             setFiles((prev) => [data.file, ...prev]);
+            setStorage((prev) =>
+              prev ? { ...prev, used: prev.used + uploaded.size } : prev,
+            );
             notify(`Uploaded ${uploaded.name}`);
           } else {
             const body = (await response.json().catch(() => null)) as {
@@ -481,6 +488,14 @@ function FilesView() {
           return;
         }
       }
+      const freedBytes = entries
+        .filter((entry) => entry.kind === "file")
+        .reduce((sum, entry) => sum + entry.item.size, 0);
+      if (freedBytes > 0) {
+        setStorage((prev) =>
+          prev ? { ...prev, used: Math.max(0, prev.used - freedBytes) } : prev,
+        );
+      }
       setSelected((prev) => {
         const next = new Set(prev);
         for (const entry of entries) next.delete(entry.item.id);
@@ -643,6 +658,14 @@ function FilesView() {
           : [],
       ),
     [entries],
+  );
+
+  const storagePct = useMemo(
+    () =>
+      storage
+        ? Math.min(100, Math.round((storage.used / storage.limit) * 100))
+        : 0,
+    [storage],
   );
 
   return (
@@ -963,6 +986,38 @@ function FilesView() {
           onClose={() => setPreviewId(null)}
         />
       )}
+
+      {storage ? (
+        <div
+          className="fixed bottom-4 right-4 z-30 flex items-center gap-2.5 rounded-xl border border-[#e3e5ea] bg-white/95 px-3 py-2 shadow-[0_8px_24px_rgba(35,43,66,0.12)] backdrop-blur"
+          title={`${formatBytes(storage.used)} of ${formatBytes(storage.limit)} used`}
+        >
+          <Database className="size-4 shrink-0 text-[#8b94a5]" />
+          <div className="w-40">
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="text-[11px] font-medium text-[#596275]">
+                {formatBytes(storage.used)}
+              </p>
+              <p className="text-[10px] text-[#9aa1ad]">
+                of {formatBytes(storage.limit)}
+              </p>
+            </div>
+            <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-[#eef0f4]">
+              <div
+                className={cn(
+                  "h-full rounded-full transition-all",
+                  storagePct >= 100
+                    ? "bg-[#d84c6b]"
+                    : storagePct >= 80
+                      ? "bg-[#d28a4d]"
+                      : "bg-[#5b64d6]",
+                )}
+                style={{ width: `${storagePct}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
     </ViewFrame>
   );
 }

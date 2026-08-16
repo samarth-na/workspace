@@ -26,11 +26,17 @@ export type FolderPathItem = {
   name: string;
 };
 
+export type WorkspaceStorage = {
+  used: number;
+  limit: number;
+};
+
 export type FolderContentsResponse = {
   files: FileItem[];
   folders: FolderItem[];
   path: FolderPathItem[];
   isPreview: boolean;
+  storage: WorkspaceStorage;
 };
 
 export type UploadFileResponse = {
