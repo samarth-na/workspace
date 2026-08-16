@@ -21,11 +21,11 @@ import {
 import { workspace, workspaceMember } from "@/db/workspace";
 
 const DEMO_USERS = [
-  { id: "u-samarth", email: "samarth@cedar.co", name: "Samarth" },
-  { id: "u-maya", email: "maya@cedar.co", name: "Maya Chen" },
-  { id: "u-jordan", email: "jordan@cedar.co", name: "Jordan Lee" },
-  { id: "u-priya", email: "priya@cedar.co", name: "Priya Shah" },
-  { id: "u-alex", email: "alex@cedar.co", name: "Alex Morgan" },
+  { id: "u-samarth", email: "samarth@cloudworkspace.co", name: "Samarth" },
+  { id: "u-maya", email: "maya@cloudworkspace.co", name: "Maya Chen" },
+  { id: "u-jordan", email: "jordan@cloudworkspace.co", name: "Jordan Lee" },
+  { id: "u-priya", email: "priya@cloudworkspace.co", name: "Priya Shah" },
+  { id: "u-alex", email: "alex@cloudworkspace.co", name: "Alex Morgan" },
 ];
 
 const DEMO_PASSWORD = "password123";
@@ -811,7 +811,11 @@ async function seedWorkspace(memberIds: string[]) {
   } else {
     await db
       .insert(workspace)
-      .values({ id: "w-cedar", name: "Cedar & Co.", createdBy: "u-samarth" })
+      .values({
+        id: "w-cedar",
+        name: "Cloud Workspace",
+        createdBy: "u-samarth",
+      })
       .onConflictDoNothing();
     summary.workspacesCreated += 1;
   }

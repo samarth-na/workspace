@@ -36,7 +36,7 @@ function PeopleView() {
   return (
     <ViewFrame
       title="People"
-      description="Everyone who makes Cedar & Co. work."
+      description="Everyone who makes Cloud Workspace work."
       action="Invite people"
       onAction={() => notify("Invite link copied")}
     >

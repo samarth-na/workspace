@@ -138,7 +138,7 @@ export function SearchDialog({
           )}
         </div>
         <div className="flex items-center justify-between border-t border-[#eff0f3] px-4 py-3 text-[11px] text-[#9aa1ad]">
-          <span>Search everything in Cedar & Co.</span>
+          <span>Search everything in Cloud Workspace.</span>
           <span className="flex items-center gap-1">
             <Terminal className="size-3" /> Enter to open
           </span>

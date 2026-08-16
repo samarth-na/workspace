@@ -60,7 +60,7 @@ function Logo({ compact = false }: { compact?: boolean }) {
           compact ? "text-[13px]" : "text-[15px]"
         }`}
       >
-        Cedar &amp; Co.
+        Cloud Workspace
       </span>
     </span>
   );
@@ -162,7 +162,7 @@ function Nav() {
   return (
     <header className="sticky top-0 z-40 border-b border-[#e9ebef] bg-[#fafbfc]/85 backdrop-blur-xl">
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-5 sm:px-8">
-        <Link href="/" aria-label="Cedar & Co. home">
+        <Link href="/" aria-label="Cloud Workspace home">
           <Logo />
         </Link>
         <nav className="hidden items-center gap-7 md:flex">
@@ -251,7 +251,7 @@ function HeroMockup() {
           <span className="size-2.5 rounded-full bg-[#ecd9a0]" />
           <span className="size-2.5 rounded-full bg-[#a8d5b1]" />
           <span className="ml-3 truncate rounded-md border border-[#e3e5ea] bg-white px-3 py-1 font-mono text-[11px] text-[#8991a3]">
-            cedar.co/messages/product-launch
+            cloud.workspace/messages/product-launch
           </span>
         </div>
         <div className="grid grid-cols-[190px_1fr] text-left">
@@ -261,7 +261,7 @@ function HeroMockup() {
                 C
               </span>
               <span className="truncate text-[12px] font-semibold text-[#232b42]">
-                Cedar &amp; Co.
+                Cloud Workspace
               </span>
             </div>
             {navItems.map((item) => (
@@ -430,7 +430,7 @@ function Hero() {
           Every message, task, file, and call. One calm workspace.
         </h1>
         <p className="mx-auto mt-5 max-w-xl text-[16px] leading-relaxed text-[#677085] sm:text-[18px]">
-          Cedar &amp; Co. replaces the tab-hopping. Chat in real time, plan work
+          Cloud Workspace replaces the tab-hopping. Chat in real time, plan work
           your way, share files, and jump on a call — together in one shared
           place.
         </p>
@@ -532,7 +532,7 @@ function Features() {
         <SectionHeading
           eyebrow="Features"
           title="Six tools your team already uses, in one place."
-          body="Each part of Cedar & Co. does one job well, and they all speak to each other. A task links to a file, a call starts from a conversation."
+          body="Each part of Cloud Workspace does one job well, and they all speak to each other. A task links to a file, a call starts from a conversation."
         />
         <div className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {FEATURES.map((feature) => (
@@ -1022,7 +1022,7 @@ function Footer() {
         </div>
         <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-[#eef0f4] pt-8 sm:flex-row">
           <p className="text-[12px] text-[#9aa1ad]">
-            © {new Date().getFullYear()} Cedar &amp; Co. All rights reserved.
+            © {new Date().getFullYear()} Cloud Workspace. All rights reserved.
           </p>
           <p className="font-mono text-[10px] tracking-[0.1em] text-[#aab2c5] uppercase">
             Built with Next.js, Drizzle, and Better Auth

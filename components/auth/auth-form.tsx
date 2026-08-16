@@ -9,11 +9,11 @@ import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
 
 const DEMO_ACCOUNTS = [
-  { email: "samarth@cedar.co", label: "Samarth (owner)" },
-  { email: "maya@cedar.co", label: "Maya Chen" },
-  { email: "jordan@cedar.co", label: "Jordan Lee" },
-  { email: "priya@cedar.co", label: "Priya Shah" },
-  { email: "alex@cedar.co", label: "Alex Morgan" },
+  { email: "samarth@cloudworkspace.co", label: "Samarth (owner)" },
+  { email: "maya@cloudworkspace.co", label: "Maya Chen" },
+  { email: "jordan@cloudworkspace.co", label: "Jordan Lee" },
+  { email: "priya@cloudworkspace.co", label: "Priya Shah" },
+  { email: "alex@cloudworkspace.co", label: "Alex Morgan" },
 ];
 
 const DEMO_PASSWORD = "password123";
@@ -60,8 +60,8 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         </h1>
         <p className="text-[13px] text-[#8991a3]">
           {isSignIn
-            ? "Sign in to Cedar & Co. to continue."
-            : "Start working with your team in Cedar & Co."}
+            ? "Sign in to Cloud Workspace to continue."
+            : "Start working with your team in Cloud Workspace."}
         </p>
       </div>
 
@@ -98,7 +98,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
               name="email"
               type="email"
               autoComplete="email"
-              placeholder="you@cedar.co"
+              placeholder="you@cloudworkspace.co"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required

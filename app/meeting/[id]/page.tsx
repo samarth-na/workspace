@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { MeetingRoom } from "@/components/meetings/meeting-room";
 
 export const metadata: Metadata = {
-  title: "Meeting | Cedar & Co.",
+  title: "Meeting | Cloud Workspace",
 };
 
 function RoomFallback() {

@@ -11,11 +11,11 @@ const AVATAR_PALETTE = [
 ];
 
 const KNOWN_COLORS: Record<string, string> = {
-  "samarth@cedar.co": "#d9d6f4",
-  "maya@cedar.co": "#f5c7b8",
-  "jordan@cedar.co": "#c6d8f5",
-  "priya@cedar.co": "#ddd0f3",
-  "alex@cedar.co": "#d4e8cf",
+  "samarth@cloudworkspace.co": "#d9d6f4",
+  "maya@cloudworkspace.co": "#f5c7b8",
+  "jordan@cloudworkspace.co": "#c6d8f5",
+  "priya@cloudworkspace.co": "#ddd0f3",
+  "alex@cloudworkspace.co": "#d4e8cf",
 };
 
 export function avatarColorFor(email: string, id: string): string {
