@@ -14,7 +14,9 @@
     "db:studio": "drizzle-kit studio",
     "db:seed": "bun db/seed.ts",
     "db:backfill-uploads": "bun db/backfill-uploads.ts",
-    "ws": "bun ws/server.ts"
+    "ws": "bun ws/server.ts",
+    "db:deploy": "drizzle-kit migrate",
+    "vercel-build": "bun run db:deploy && next build"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",

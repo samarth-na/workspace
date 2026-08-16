@@ -2,13 +2,18 @@ import { createClient as createFileClient } from "@libsql/client";
 import { createClient as createWebClient } from "@libsql/client/web";
 import { drizzle } from "drizzle-orm/libsql";
 
-const url =
-  process.env.TURSO_DATABASE_URL ??
-  process.env.DATABASE_URL ??
-  "file:./sqlite.db";
+const url = process.env.TURSO_DATABASE_URL ?? process.env.DATABASE_URL;
 
-const client = url.startsWith("file:")
-  ? createFileClient({ url })
-  : createWebClient({ url, authToken: process.env.TURSO_AUTH_TOKEN });
+if (!url && process.env.NODE_ENV === "production") {
+  throw new Error(
+    "Database URL is missing. Set TURSO_DATABASE_URL (or DATABASE_URL) for production.",
+  );
+}
+
+const dsn = url ?? "file:./sqlite.db";
+
+const client = dsn.startsWith("file:")
+  ? createFileClient({ url: dsn })
+  : createWebClient({ url: dsn, authToken: process.env.TURSO_AUTH_TOKEN });
 
 export const db = drizzle(client);

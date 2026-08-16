@@ -1,6 +1,8 @@
 import { and, eq } from "drizzle-orm";
+import { UTApi } from "uploadthing/server";
 
 import { db } from "@/db";
+import { file } from "@/db/files";
 import { user } from "@/db/schema";
 import { workspace, workspaceMember } from "@/db/workspace";
 import { avatarUserFor, getSessionUser } from "@/lib/chat-data";
@@ -281,5 +283,13 @@ export async function updateWorkspaceLogo(
 }
 
 export async function deleteWorkspaceById(workspaceId: string): Promise<void> {
+  const rows = await db
+    .select({ storedName: file.storedName })
+    .from(file)
+    .where(eq(file.workspaceId, workspaceId));
   await db.delete(workspace).where(eq(workspace.id, workspaceId));
+  const storedNames = rows.map((row) => row.storedName);
+  if (storedNames.length > 0) {
+    await new UTApi().deleteFiles(storedNames).catch(() => {});
+  }
 }
