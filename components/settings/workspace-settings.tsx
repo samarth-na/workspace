@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { compressImage } from "@/lib/image-compress";
+import { useUploadThing } from "@/lib/uploadthing-client";
 import { cn } from "@/lib/utils";
 import type {
   WorkspaceMemberItem,
@@ -127,6 +128,22 @@ export function WorkspaceSettings({
     }
   };
 
+  const { startUpload } = useUploadThing("imageUploader", {
+    onClientUploadComplete: async (res) => {
+      const url = res[0]?.url;
+      if (url) {
+        await saveLogo(url);
+      } else {
+        setError("Could not upload logo");
+        setUploadingLogo(false);
+      }
+    },
+    onUploadError: (error) => {
+      setError(error.message || "Could not upload logo");
+      setUploadingLogo(false);
+    },
+  });
+
   const uploadLogo = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -135,18 +152,7 @@ export function WorkspaceSettings({
     setError("");
     try {
       const compressed = await compressImage(file);
-      const form = new FormData();
-      form.append("file", compressed);
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: form,
-      });
-      const data = (await response.json()) as { url?: string; error?: string };
-      if (!response.ok || !data.url) {
-        setError(data.error ?? "Could not upload logo");
-        return;
-      }
-      await saveLogo(data.url);
+      await startUpload([compressed]);
     } catch {
       setError("Could not upload logo");
       setUploadingLogo(false);

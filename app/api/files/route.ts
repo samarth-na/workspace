@@ -1,6 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
 
 import { NextResponse } from "next/server";
 
@@ -19,11 +17,13 @@ import {
   fetchFolders,
   toFileItem,
 } from "@/lib/files-data";
+import { recordRecent } from "@/lib/recents-data";
+import { utapi } from "@/lib/uploadthing";
 import { getSessionWorkspace, previewWorkspaceId } from "@/lib/workspace-data";
 
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
-const MAX_FILE_SIZE = 25 * 1024 * 1024;
+const MAX_FILE_SIZE = 32 * 1024 * 1024;
 const MAX_NAME_LENGTH = 180;
+const KEY_PATTERN = /^[a-z0-9_-]{8,128}$/i;
 
 export async function GET(request: Request) {
   const self = await getSessionUser();
@@ -38,6 +38,18 @@ export async function GET(request: Request) {
     all ? [] : fetchFolders(folderId, workspaceId),
     all ? [] : fetchFolderPath(folderId, workspaceId),
   ]);
+  if (self && folderId) {
+    const row = await fetchFolderRow(folderId, workspaceId);
+    if (row) {
+      await recordRecent({
+        userId: self.id,
+        type: "folder",
+        itemId: row.id,
+        title: row.name,
+        href: `/files?folder=${row.id}`,
+      });
+    }
+  }
   return NextResponse.json<FolderContentsResponse>({
     files,
     folders,
@@ -56,55 +68,72 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No workspace" }, { status: 403 });
   }
 
-  const form = await request.formData();
-  const upload = form.get("file");
-  const folderId = form.get("folder");
-  if (typeof folderId === "string" && folderId.length > 0) {
-    const parent = await fetchFolderRow(folderId, context.workspaceId);
-    if (!parent) {
-      return NextResponse.json({ error: "Folder not found" }, { status: 400 });
-    }
-  }
-  if (!(upload instanceof File)) {
+  let input: {
+    key?: unknown;
+    name?: unknown;
+    size?: unknown;
+    mimeType?: unknown;
+    folderId?: unknown;
+  };
+  try {
+    input = (await request.json()) as typeof input;
+  } catch {
     return NextResponse.json(
-      { error: "file is required as multipart/form-data" },
+      { error: "Invalid request body" },
       { status: 400 },
     );
   }
-  if (upload.size === 0) {
-    return NextResponse.json({ error: "file is empty" }, { status: 400 });
+
+  const key = typeof input.key === "string" ? input.key.trim() : "";
+  if (!KEY_PATTERN.test(key)) {
+    return NextResponse.json({ error: "file key is invalid" }, { status: 400 });
   }
-  if (upload.size > MAX_FILE_SIZE) {
-    return NextResponse.json(
-      { error: "file exceeds the 25 MB limit" },
-      { status: 400 },
-    );
-  }
-  const name = upload.name.trim();
+  const name = typeof input.name === "string" ? input.name.trim() : "";
   if (name.length === 0 || name.length > MAX_NAME_LENGTH) {
     return NextResponse.json(
       { error: "file name is invalid" },
       { status: 400 },
     );
   }
+  const size =
+    typeof input.size === "number" && Number.isInteger(input.size)
+      ? input.size
+      : 0;
+  if (size === 0) {
+    return NextResponse.json({ error: "file is empty" }, { status: 400 });
+  }
+  if (size > MAX_FILE_SIZE) {
+    return NextResponse.json(
+      { error: "file exceeds the 32 MB limit" },
+      { status: 400 },
+    );
+  }
+  const mimeType =
+    typeof input.mimeType === "string" && input.mimeType.length > 0
+      ? input.mimeType
+      : "application/octet-stream";
+  const folderId =
+    typeof input.folderId === "string" && input.folderId.length > 0
+      ? input.folderId
+      : null;
+  if (folderId) {
+    const parent = await fetchFolderRow(folderId, context.workspaceId);
+    if (!parent) {
+      await utapi.deleteFiles(key).catch(() => {});
+      return NextResponse.json({ error: "Folder not found" }, { status: 400 });
+    }
+  }
 
   const id = randomUUID();
-  const ext = path.extname(upload.name).slice(0, 16);
-  const storedName = `${id}${ext}`;
-  await mkdir(UPLOAD_DIR, { recursive: true });
-  const buffer = Buffer.from(await upload.arrayBuffer());
-  await writeFile(path.join(UPLOAD_DIR, storedName), buffer);
-
   const row = await db
     .insert(file)
     .values({
       id,
       name,
-      mimeType: upload.type || "application/octet-stream",
-      size: upload.size,
-      storedName,
-      folderId:
-        typeof folderId === "string" && folderId.length > 0 ? folderId : null,
+      mimeType,
+      size,
+      storedName: key,
+      folderId,
       workspaceId: context.workspaceId,
       uploaderId: self.id,
     })
@@ -115,9 +144,9 @@ export async function POST(request: Request) {
     file: toFileItem({
       id,
       name,
-      mimeType: upload.type || "application/octet-stream",
-      size: upload.size,
-      storedName,
+      mimeType,
+      size,
+      storedName: key,
       uploaderName: self.name,
       createdAt,
     }),

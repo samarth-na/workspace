@@ -1,6 +1,3 @@
-import { unlink } from "node:fs/promises";
-import path from "node:path";
-
 import { NextResponse } from "next/server";
 
 import { getSessionUser } from "@/lib/chat-data";
@@ -15,6 +12,7 @@ import {
   moveFolder,
   renameFolder,
 } from "@/lib/files-data";
+import { utapi } from "@/lib/uploadthing";
 import { getSessionWorkspace } from "@/lib/workspace-data";
 
 const MAX_NAME_LENGTH = 100;
@@ -110,12 +108,6 @@ export async function DELETE(
     return NextResponse.json({ error: "Folder not found" }, { status: 404 });
   }
   const storedNames = await deleteFolderTree(id);
-  await Promise.all(
-    storedNames.map((storedName) =>
-      unlink(path.join(process.cwd(), "public", "uploads", storedName)).catch(
-        () => {},
-      ),
-    ),
-  );
+  await utapi.deleteFiles(storedNames).catch(() => {});
   return NextResponse.json<DeleteFolderResponse>({ ok: true });
 }

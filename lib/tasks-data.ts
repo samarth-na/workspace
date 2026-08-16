@@ -20,6 +20,7 @@ import {
   taskMention,
 } from "@/db/tasks";
 import { avatarUserFor } from "@/lib/chat-data";
+import { fileUrl } from "@/lib/file-url";
 import type {
   AppNotification,
   CreateTaskInput,
@@ -85,7 +86,7 @@ export async function fetchAttachments(
       name: row.name,
       size: row.size,
       mimeType: row.mimeType,
-      url: `/uploads/${row.storedName}`,
+      url: fileUrl(row.storedName),
       createdAt: row.createdAt.getTime(),
     });
     map.set(row.taskId, list);

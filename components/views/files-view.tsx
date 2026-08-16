@@ -39,6 +39,7 @@ import type {
   FolderPathItem,
   UploadFileResponse,
 } from "@/lib/file-types";
+import { useUploadThing } from "@/lib/uploadthing-client";
 import { cn } from "@/lib/utils";
 
 type FileTone = "indigo" | "orange" | "green" | "rose";
@@ -91,7 +92,7 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: "size", label: "Size" },
 ];
 
-const MAX_FILE_SIZE = 25 * 1024 * 1024;
+const MAX_FILE_SIZE = 32 * 1024 * 1024;
 
 function kindFor(item: { mimeType?: string; name: string }): FileKind {
   if (!item.mimeType) return "folder";
@@ -256,43 +257,65 @@ function FilesView() {
     }
   }, [creatingFolder]);
 
-  const startUpload = useCallback(
-    (fileItem: File, taskId: string) => {
-      const xhr = new XMLHttpRequest();
-      const form = new FormData();
-      form.append("file", fileItem);
-      if (folderIdRef.current) form.append("folder", folderIdRef.current);
-      xhr.open("POST", "/api/files");
-      xhr.upload.onprogress = (event) => {
-        if (!event.lengthComputable) return;
-        const progress = Math.round((event.loaded / event.total) * 100);
-        setUploads((prev) =>
-          prev.map((u) => (u.id === taskId ? { ...u, progress } : u)),
-        );
-      };
-      xhr.onload = () => {
-        let body: UploadFileResponse | { error?: string } = {};
-        try {
-          body = JSON.parse(xhr.responseText);
-        } catch {
-          body = {};
-        }
-        if (xhr.status >= 200 && xhr.status < 300 && "file" in body) {
-          setFiles((prev) => [body.file, ...prev]);
-          notify(`Uploaded ${fileItem.name}`);
-        } else {
-          notify((body as { error?: string }).error ?? "Upload failed");
-        }
-        setUploads((prev) => prev.filter((u) => u.id !== taskId));
-      };
-      xhr.onerror = () => {
-        notify(`Upload failed for ${fileItem.name}`);
-        setUploads((prev) => prev.filter((u) => u.id !== taskId));
-      };
-      xhr.send(form);
-    },
-    [notify],
+  const taskFilesRef = useRef(
+    new Map<string, { file: File; folderId: string | null }>(),
   );
+
+  const { startUpload } = useUploadThing("fileUploader", {
+    onUploadProgress: (progress) => {
+      setUploads((prev) => prev.map((u) => ({ ...u, progress })));
+    },
+    onClientUploadComplete: async (res) => {
+      for (const uploaded of res) {
+        let taskId: string | null = null;
+        let folderId: string | null = null;
+        for (const [id, task] of taskFilesRef.current) {
+          if (
+            task.file.name === uploaded.name &&
+            task.file.size === uploaded.size
+          ) {
+            taskId = id;
+            folderId = task.folderId;
+            break;
+          }
+        }
+        if (!taskId) continue;
+        try {
+          const response = await fetch("/api/files", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              key: uploaded.key,
+              name: uploaded.name,
+              size: uploaded.size,
+              mimeType: uploaded.type,
+              folderId,
+            }),
+          });
+          if (response.ok) {
+            const data = (await response.json()) as UploadFileResponse;
+            setFiles((prev) => [data.file, ...prev]);
+            notify(`Uploaded ${uploaded.name}`);
+          } else {
+            const body = (await response.json().catch(() => null)) as {
+              error?: string;
+            } | null;
+            notify(body?.error ?? "Upload failed");
+          }
+        } catch {
+          notify(`Upload failed for ${uploaded.name}`);
+        } finally {
+          taskFilesRef.current.delete(taskId);
+          setUploads((prev) => prev.filter((u) => u.id !== taskId));
+        }
+      }
+    },
+    onUploadError: (error) => {
+      notify(error.message);
+      taskFilesRef.current.clear();
+      setUploads([]);
+    },
+  });
 
   const handleFiles = useCallback(
     (selectedFiles: File[]) => {
@@ -300,18 +323,24 @@ function FilesView() {
         notify("Sign in to upload files");
         return;
       }
+      const accepted: File[] = [];
       for (const fileItem of selectedFiles) {
         if (fileItem.size > MAX_FILE_SIZE) {
-          notify(`${fileItem.name} exceeds the 25 MB limit`);
+          notify(`${fileItem.name} exceeds the 32 MB limit`);
           continue;
         }
         const taskId = crypto.randomUUID();
+        taskFilesRef.current.set(taskId, {
+          file: fileItem,
+          folderId: folderIdRef.current,
+        });
         setUploads((prev) => [
           ...prev,
           { id: taskId, name: fileItem.name, progress: 0 },
         ]);
-        startUpload(fileItem, taskId);
+        accepted.push(fileItem);
       }
+      if (accepted.length > 0) void startUpload(accepted);
     },
     [notify, startUpload],
   );

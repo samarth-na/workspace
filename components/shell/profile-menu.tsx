@@ -13,6 +13,7 @@ import { useRef, useState } from "react";
 import { Avatar } from "@/components/shared/avatar";
 import { authClient } from "@/lib/auth-client";
 import { compressImage } from "@/lib/image-compress";
+import { useUploadThing } from "@/lib/uploadthing-client";
 
 export function ProfileMenu({
   userName,
@@ -35,6 +36,30 @@ export function ProfileMenu({
   const [error, setError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const { startUpload } = useUploadThing("imageUploader", {
+    onClientUploadComplete: async (res) => {
+      const url = res[0]?.url;
+      if (!url) {
+        setError("Could not upload picture");
+        setUploading(false);
+        return;
+      }
+      const result = await authClient.updateUser({ image: url });
+      if (result.error) {
+        setError(result.error.message ?? "Could not update picture");
+        setUploading(false);
+        return;
+      }
+      setUploading(false);
+      router.refresh();
+      onClose();
+    },
+    onUploadError: (error) => {
+      setError(error.message || "Could not upload picture");
+      setUploading(false);
+    },
+  });
+
   const signOut = async () => {
     setSigningOut(true);
     await authClient.signOut();
@@ -50,27 +75,9 @@ export function ProfileMenu({
     setUploading(true);
     try {
       const compressed = await compressImage(file);
-      const form = new FormData();
-      form.append("file", compressed);
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: form,
-      });
-      const data = (await response.json()) as { url?: string; error?: string };
-      if (!response.ok || !data.url) {
-        setError(data.error ?? "Could not upload picture");
-        return;
-      }
-      const result = await authClient.updateUser({ image: data.url });
-      if (result.error) {
-        setError(result.error.message ?? "Could not update picture");
-        return;
-      }
-      router.refresh();
-      onClose();
+      await startUpload([compressed]);
     } catch {
       setError("Could not upload picture");
-    } finally {
       setUploading(false);
     }
   };

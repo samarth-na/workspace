@@ -1,6 +1,3 @@
-import { unlink } from "node:fs/promises";
-import path from "node:path";
-
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
@@ -17,6 +14,7 @@ import {
   renameFile,
   toFileItem,
 } from "@/lib/files-data";
+import { utapi } from "@/lib/uploadthing";
 import { getSessionWorkspace } from "@/lib/workspace-data";
 
 const MAX_NAME_LENGTH = 180;
@@ -113,8 +111,6 @@ export async function DELETE(
   if (!storedName) {
     return NextResponse.json({ error: "File not found" }, { status: 404 });
   }
-  await unlink(path.join(process.cwd(), "public", "uploads", storedName)).catch(
-    () => {},
-  );
+  await utapi.deleteFiles(storedName).catch(() => {});
   return NextResponse.json<DeleteFileResponse>({ ok: true });
 }

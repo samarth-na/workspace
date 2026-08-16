@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { file, folder } from "@/db/files";
 import { user } from "@/db/schema";
 import type { FileItem, FolderItem, FolderPathItem } from "@/lib/file-types";
+import { fileUrl } from "@/lib/file-url";
 
 export async function fetchFiles(
   folderId: string | null,
@@ -241,7 +242,7 @@ export function toFileItem(row: {
     name: row.name,
     mimeType: row.mimeType,
     size: row.size,
-    url: `/uploads/${row.storedName}`,
+    url: fileUrl(row.storedName),
     uploaderName: row.uploaderName,
     createdAt: row.createdAt.getTime(),
   };
