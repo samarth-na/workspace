@@ -67,6 +67,7 @@ function MeetingRoom({ meetingId }: { meetingId: string }) {
   const [showParticipants, setShowParticipants] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
   const [hasMedia, setHasMedia] = useState(true);
+  const [mediaReady, setMediaReady] = useState(false);
   const [pinnedPeerId, setPinnedPeerId] = useState<string | null>(null);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -326,14 +327,21 @@ function MeetingRoom({ meetingId }: { meetingId: string }) {
             audio: true,
             video: true,
           });
-          if (cancelled) return;
+          if (cancelled) {
+            stream.getTracks().forEach((track) => {
+              track.stop();
+            });
+            return;
+          }
           localStreamRef.current = stream;
+          setMediaReady(true);
           if (localVideoRef.current) {
             localVideoRef.current.srcObject = stream;
           }
         } catch {
           if (cancelled) return;
           setHasMedia(false);
+          setMediaReady(false);
           setNotice(
             "Camera or microphone is unavailable. You can still join with audio off.",
           );
@@ -357,6 +365,14 @@ function MeetingRoom({ meetingId }: { meetingId: string }) {
       cleanup();
     };
   }, [meetingId]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Reattach the stream when the conditional video tile mounts.
+  useEffect(() => {
+    const video = localVideoRef.current;
+    const stream = localStreamRef.current;
+    if (!video || !stream || video.srcObject === stream) return;
+    video.srcObject = stream;
+  }, [controls.cameraOn, controls.sharing, mediaReady, socketConnected]);
 
   useEffect(() => {
     if (!socketConnected) return;
@@ -550,7 +566,7 @@ function MeetingRoom({ meetingId }: { meetingId: string }) {
           <div className="workspace-sidebar-scroll flex-1 overflow-y-auto p-4">
             {!socketConnected ? (
               <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-                <span className="size-2 animate-pulse rounded-full bg-[#aeb7ff]" />
+                <span className="size-2 animate-pulse rounded-full bg-[#9cb8f7]" />
                 <p className="text-[13px] text-[#8b93a7]">
                   Connecting to the meeting room…
                 </p>
@@ -758,7 +774,7 @@ function VideoTile({
       <div className="absolute inset-x-0 bottom-0 flex items-center justify-between p-3">
         <span className="flex items-center gap-2 rounded-lg bg-[#0b0d12]/70 px-2.5 py-1 text-[11px] font-semibold backdrop-blur-sm">
           {sharing ? (
-            <span className="flex items-center gap-1.5 text-[#aeb7ff]">
+            <span className="flex items-center gap-1.5 text-[#9cb8f7]">
               <Presentation className="size-3" /> Presenting
             </span>
           ) : (
@@ -817,7 +833,7 @@ function RemoteTile({
         <InitialsBackdrop name={peer.name} />
       )}
       {pinned ? (
-        <span className="absolute left-3 top-3 rounded-lg bg-[#0b0d12]/70 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#aeb7ff] backdrop-blur-sm">
+        <span className="absolute left-3 top-3 rounded-lg bg-[#0b0d12]/70 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#9cb8f7] backdrop-blur-sm">
           Pinned
         </span>
       ) : null}
@@ -828,7 +844,7 @@ function RemoteTile({
           className={cn(
             "absolute right-3 top-3 flex size-8 items-center justify-center rounded-lg bg-[#0b0d12]/70 text-[#c3c9d9] backdrop-blur-sm transition-colors hover:bg-[#0b0d12] hover:text-white",
             pinned
-              ? "text-[#aeb7ff]"
+              ? "text-[#9cb8f7]"
               : "opacity-0 focus-visible:opacity-100 group-hover:opacity-100",
           )}
           onClick={onPinToggle}
@@ -843,7 +859,7 @@ function RemoteTile({
       <div className="absolute inset-x-0 bottom-0 flex items-center justify-between p-3">
         <span className="flex items-center gap-2 rounded-lg bg-[#0b0d12]/70 px-2.5 py-1 text-[11px] font-semibold backdrop-blur-sm">
           {peer.sharing ? (
-            <span className="flex items-center gap-1.5 text-[#aeb7ff]">
+            <span className="flex items-center gap-1.5 text-[#9cb8f7]">
               <Presentation className="size-3" /> Presenting
             </span>
           ) : (
@@ -959,7 +975,7 @@ function ParticipantRow({
         <span className="flex items-center gap-1.5 text-[12px] font-medium text-[#e8eaf0]">
           <span className="truncate">{name}</span>
           {host ? (
-            <span className="rounded bg-[#aeb7ff]/20 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#aeb7ff]">
+            <span className="rounded bg-[#9cb8f7]/20 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#9cb8f7]">
               Host
             </span>
           ) : null}
@@ -969,7 +985,7 @@ function ParticipantRow({
         ) : null}
       </span>
       <span className="flex items-center gap-1.5 text-[#6d7488]">
-        {sharing ? <Share className="size-3.5 text-[#aeb7ff]" /> : null}
+        {sharing ? <Share className="size-3.5 text-[#9cb8f7]" /> : null}
         {muted ? <MicOff className="size-3.5" /> : null}
         {!cameraOn ? <EyeOff className="size-3.5" /> : null}
       </span>
