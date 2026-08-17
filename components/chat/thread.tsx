@@ -1,8 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Bulletlist, Smile } from "pixelarticons/react";
+import {
+  ArrowLeft,
+  Bulletlist,
+  Loader,
+  Phone,
+  Smile,
+} from "pixelarticons/react";
 import { Fragment, useEffect, useRef, useState } from "react";
+import { createCall } from "@/components/calls/call-api";
+import { CallPanel } from "@/components/calls/call-panel";
 import {
   fetchConversations,
   fetchMessages,
@@ -45,6 +53,8 @@ function Thread({ conversationId }: { conversationId: string }) {
   const [typingUsers, setTypingUsers] = useState<
     { userId: string; name: string }[]
   >([]);
+  const [activeCallId, setActiveCallId] = useState<string | null>(null);
+  const [startingCall, setStartingCall] = useState(false);
 
   useEffect(() => {
     notifyRef.current = notify;
@@ -311,6 +321,22 @@ function Thread({ conversationId }: { conversationId: string }) {
     : "";
   const typingLabel = typingUsers.map((user) => user.name).join(", ");
 
+  const startCall = async () => {
+    if (startingCall || !conversation) return;
+    setStartingCall(true);
+    try {
+      const data = await createCall({
+        memberIds: conversation.members.map((member) => member.id),
+      });
+      setActiveCallId(data.callId);
+      notify("Call started");
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "Could not start call");
+    } finally {
+      setStartingCall(false);
+    }
+  };
+
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-[#e5e7ec] bg-white">
       <div className="flex items-center justify-between border-b border-[#eff0f3] px-5 py-4">
@@ -344,13 +370,29 @@ function Thread({ conversationId }: { conversationId: string }) {
             )}
           </div>
         </div>
+        {isSignedIn ? (
+          <button
+            type="button"
+            aria-label={`Start a call with ${members.map((member) => member.name).join(", ") || "this conversation"}`}
+            title="Start a call"
+            disabled={startingCall || members.length === 0}
+            className="flex size-7 shrink-0 items-center justify-center rounded-lg text-[#6972cd] transition-colors hover:bg-[#eef0ff] disabled:cursor-default disabled:opacity-40"
+            onClick={() => void startCall()}
+          >
+            {startingCall ? (
+              <Loader className="size-3.5 animate-spin" />
+            ) : (
+              <Phone className="size-3.5" />
+            )}
+          </button>
+        ) : null}
         {members.length > 0 ? (
           <div className="ml-3 flex shrink-0 items-center -space-x-1.5">
             {members.slice(0, 3).map((member) => (
               <span
                 key={member.id}
                 title={member.name}
-                className="flex size-6 items-center justify-center rounded-full border-2 border-white text-[9px] font-semibold text-[#514e9a]"
+                className="flex size-6 items-center justify-center rounded-full border-2 border-white text-[9px] font-semibold text-[#31518e]"
                 style={{ backgroundColor: member.color }}
               >
                 {member.initials}
@@ -445,6 +487,14 @@ function Thread({ conversationId }: { conversationId: string }) {
           Sign in to send messages
         </div>
       )}
+
+      {activeCallId ? (
+        <CallPanel
+          callId={activeCallId}
+          onClose={() => setActiveCallId(null)}
+          onNotify={notify}
+        />
+      ) : null}
     </div>
   );
 }
@@ -492,7 +542,7 @@ function MessageRow({
         <span className="w-8 shrink-0" aria-hidden="true" />
       ) : (
         <span
-          className="flex size-8 shrink-0 items-center justify-center rounded-full text-[9px] font-semibold text-[#514e9a]"
+          className="flex size-8 shrink-0 items-center justify-center rounded-full text-[9px] font-semibold text-[#31518e]"
           style={{ backgroundColor: message.sender.color }}
         >
           {message.sender.initials}

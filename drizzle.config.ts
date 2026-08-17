@@ -10,6 +10,7 @@ export default defineConfig({
     "./db/files.ts",
     "./db/workspace.ts",
     "./db/recents.ts",
+    "./db/calls.ts",
   ],
   out: "./drizzle",
   dbCredentials: {

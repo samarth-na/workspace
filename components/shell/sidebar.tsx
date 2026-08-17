@@ -13,6 +13,7 @@ import {
   InfoBox,
   Message,
   Pencil,
+  Phone,
   Plus,
   Settings2,
   Users,
@@ -356,6 +357,7 @@ const RECENT_ICONS: Record<RecentItemDto["type"], typeof FileText> = {
   conversation: Message,
   meeting: Video,
   folder: Folder,
+  call: Phone,
 };
 
 function isRecentActive(

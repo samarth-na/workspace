@@ -61,6 +61,15 @@ Next.js 16 (App Router) + Bun, Drizzle on SQLite (libsql), Better Auth, Tailwind
 - The browser client is `components/meetings/meeting-socket.ts` (`createMeetingSocket(meetingId)`); it fetches a short-lived JWT from `app/api/realtime/token/route.ts`, connects with `NEXT_PUBLIC_REALTIME_URL` (default `ws://localhost:8787`), and auto-reconnects with backoff. Meeting event shapes are in `lib/meeting-types.ts` (client/server payloads mirror the worker's `src/contract.ts`).
 - `WS_AUTH_SECRET` signs/verifies the token and must match between this repo's `.env` and the realtime repo's `.dev.vars` (or `wrangler secret put`). The worker also requires the browser `Origin` in its `ALLOWED_ORIGINS`.
 
+## Calls (ephemeral, unlike meetings)
+
+- Calls are short-lived 1-on-1 or group audio/video rooms. They end when the call ends — they do not persist like meetings.
+- DB tables (`call`, `call_member`) in `db/calls.ts`; REST API in `app/api/calls/`; shared types in `lib/call-types.ts`; data helpers in `lib/call-data.ts`.
+- Lifecycle: created `ringing` → first non-host join flips to `live` → host/admin ends it, or the heartbeat sweep auto-ends it. The sweep runs inside `listCalls`: any non-ended call whose `lastHeartbeatAt` is older than 90 s is marked `ended`, so a call dies when nobody is in it.
+- The room client (`components/calls/use-call-session.ts`) POSTs a heartbeat every 15 s while its socket is connected. Host ends via `endCall` (API + `call:hangup` broadcast); guests `leaveCall` (no end).
+- Realtime runs on the same Cloudflare Worker, but in `call:<id>` rooms; the client is `components/calls/call-socket.ts`. The worker's `call:hangup` event (broadcast to all peers) is defined in the realtime repo's `src/contract.ts` + `src/realtime.ts` — keep them in sync.
+- Entry points: `/call/[id]` full room, `components/calls/call-panel.tsx` embedded overlay started from a chat thread header, `NewCallDialog` on the Calls page. Ended calls appear under "Recent calls" for 24 h; `recordRecent` uses type `call`.
+
 ## Environment
 
 - `.env` is required and gitignored; `.env.example` is committed. Populate `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, and the OAuth pairs above.
