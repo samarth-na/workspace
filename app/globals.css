@@ -177,6 +177,7 @@
   h5,
   h6 {
     font-family: var(--font-heading);
+    font-weight: 500 !important;
   }
   html {
     @apply font-sans;
