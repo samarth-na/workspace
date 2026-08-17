@@ -19,6 +19,8 @@ import {
 } from "pixelarticons/react";
 import type * as React from "react";
 
+import { LandingNav } from "@/components/landing/nav";
+
 const AVATAR_BG = {
   blue: "#9cb8f7",
   amber: "#f2c9a0",
@@ -149,50 +151,6 @@ function GhostLink({
     >
       {children}
     </Link>
-  );
-}
-
-function Nav() {
-  const links = [
-    { href: "#product", label: "Product" },
-    { href: "#tasks", label: "Tasks" },
-    { href: "#messaging", label: "Messaging" },
-    { href: "#calls", label: "Calls" },
-  ];
-  return (
-    <header className="sticky top-0 z-40 border-b border-[#e9ebef] bg-[#fafbfc]/85 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-5 sm:px-8">
-        <Link href="/" aria-label="Cloud Workspace home">
-          <Logo />
-        </Link>
-        <nav className="hidden items-center gap-7 md:flex">
-          {links.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="text-[13.5px] font-medium text-[#596275] transition-colors hover:text-[#232b42]"
-            >
-              {link.label}
-            </Link>
-          ))}
-        </nav>
-        <div className="flex items-center gap-2">
-          <Link
-            href="/sign-in"
-            className="rounded-lg px-3.5 py-2 text-[13px] font-medium text-[#596275] transition-colors hover:bg-[#f0f1f4] hover:text-[#232b42]"
-          >
-            Sign in
-          </Link>
-          <Link
-            href="/sign-up"
-            className="flex h-9 items-center gap-1.5 rounded-lg bg-[#232b42] px-4 text-[13px] font-medium text-white transition-colors hover:bg-[#2f3957]"
-          >
-            Get started
-            <ArrowRight className="size-3.5" />
-          </Link>
-        </div>
-      </div>
-    </header>
   );
 }
 
@@ -413,7 +371,7 @@ function HeroMockup() {
 
 function Hero() {
   return (
-    <section className="relative overflow-hidden pt-20 pb-20 sm:pt-28">
+    <section className="relative overflow-hidden pt-16 pb-20 sm:pt-20">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-96 bg-gradient-to-b from-[#eef1f8] to-transparent" />
       <div className="relative mx-auto w-full max-w-6xl px-5 text-center sm:px-8">
         <Link
@@ -1036,7 +994,7 @@ function Footer() {
 export function LandingPage() {
   return (
     <div className="flex min-h-dvh flex-col bg-[#fafbfc]">
-      <Nav />
+      <LandingNav />
       <main className="flex-1">
         <Hero />
         <CapabilityStrip />
