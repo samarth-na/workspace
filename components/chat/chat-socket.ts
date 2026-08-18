@@ -147,7 +147,7 @@ class RealtimeChatSocket implements ChatSocket {
     }
     if (this.manuallyClosed) return;
 
-    const url = `${chatWebSocketUrl}?room=chat&token=${encodeURIComponent(token)}`;
+    const url = `${chatWebSocketUrl}?room=chat2&token=${encodeURIComponent(token)}`;
     const ws = new WebSocket(url);
     this.ws = ws;
     ws.onopen = () => {
