@@ -122,10 +122,11 @@
   <li><a href="#s6">Remediation: the worker (cloud-workspace-realtime)</a></li>
   <li><a href="#s7">Remediation: the browser client (cloud-workspace)</a></li>
   <li><a href="#s8">The stale Durable Object instance</a></li>
-  <li><a href="#s9">Verification results</a></li>
-  <li><a href="#s10">Database verification and cleanup</a></li>
-  <li><a href="#s11">Current state, risks, and next steps</a></li>
-  <li><a href="#s12">Appendix</a></li>
+  <li><a href="#s9">How the app was actually fixed and shipped</a></li>
+  <li><a href="#s10">Verification results</a></li>
+  <li><a href="#s11">Database verification and cleanup</a></li>
+  <li><a href="#s12">Current state, risks, and next steps</a></li>
+  <li><a href="#s13">Appendix</a></li>
 </ol>
 </div>
 
@@ -383,7 +384,73 @@ bun run build                                    # all routes compile, exit 0</p
 <p>Two options exist. The heavy one is a two-step <code>delete_classes</code> / <code>new_sqlite_classes</code> migration pair, which Cloudflare forbids in a single migration (error 10074). The light one is to change the room name so the next connection creates a fresh instance. The light option was chosen: the client now connects with <code>?room=chat2</code>. After the app redeployed, the same browser test passed end-to-end. The gotcha is documented in AGENTS.md so a future session encountering a "deployed but silent" worker knows to bump the room name instead of rewriting the worker.</p>
 
 <!-- =================================================================== -->
-<h2 id="s9">9. Verification results</h2>
+<h2 id="s9">9. How the app was actually fixed and shipped</h2>
+
+<p>Sections 5 through 8 describe <em>what</em> changed. This section documents <em>how</em> the changes were actually applied and shipped in this working session, because the operational sequence — fix, test, deploy, verify in a browser, discover the next problem, repeat — is the part every earlier pass got wrong. It is also where the Vercel CLI was used, so the commands and their exact outputs are reproduced here.</p>
+
+<h3>9.1 Order of operations</h3>
+<p>Two constraints shaped the sequence. First, the Cloudflare Worker had to be deployed first, because the browser client's rewrite could only be tested against a server that actually implemented the protocol. Second, Vercel deployments had to be minimized — the project is on a free plan — so each <code>vercel deploy --prod</code> was reserved for a batch of changes that had already passed local static checks and, where possible, endpoint probes.</p>
+
+<ol>
+  <li><strong>Worker implementation.</strong> Wrote <code>src/chat.ts</code>, reworked <code>src/realtime.ts</code> and <code>src/index.ts</code>, added <code>@libsql/client</code>, added the Turso config to <code>wrangler.toml</code>. Typecheck and biome clean.</li>
+  <li><strong>Worker secrets and deploy.</strong> <code>wrangler secret put TURSO_AUTH_TOKEN</code> (value piped from <code>.dev.vars</code> so it never appeared in the transcript), then <code>bun run deploy</code> → "✅ Uploaded secret TURSO_AUTH_TOKEN" and "Deployed cloud-workspace-realtime (11.37 sec)".</li>
+  <li><strong>Worker commit.</strong> <code>da0806f</code> on <code>main</code>.</li>
+  <li><strong>App implementation.</strong> Rewrote <code>components/chat/chat-socket.ts</code>, removed <code>ws/server.ts</code>, the Socket.IO dependencies, the <code>ws</code> npm script, and the docker-compose <code>ws</code> service; updated AGENTS.md and DEPLOYMENT.md; fixed <code>.env</code>; deleted <code>.env.prod</code> and <code>.env.vercel</code>.</li>
+  <li><strong>App static checks.</strong> <code>bunx biome check --write</code>, <code>bunx tsc --noEmit</code>, <code>bun run lint</code> (158 files), <code>bun run build</code> — all green.</li>
+  <li><strong>App commit.</strong> <code>8448d78</code> on <code>dev</code>.</li>
+  <li><strong>Vercel deploy #1.</strong> The repository was significantly ahead of the linked GitHub branch, so instead of waiting for a push-triggered build, the current tree was deployed directly with the CLI.</li>
+  <li><strong>Browser verification.</strong> Created a Browser Control session, instrumented it, drove the production chat flow. This immediately exposed the stale Durable Object instance (section 8).</li>
+  <li><strong>Fix + deploy #2.</strong> Changed the room to <code>chat2</code> (<code>cf152ac</code>), redeployed the app, re-ran the browser round-trip — passed.</li>
+</ol>
+
+<h3>9.2 Verbatim Vercel CLI session</h3>
+<p>The CLI was used in three capacities: inspecting environment variables, pulling them for comparison, and creating production deployments.</p>
+
+<p><strong>1. Inspecting the environment surface.</strong> <code>vercel env ls production</code> listed every variable with its visibility and which environments it applies to:</p>
+<pre>
+ name                            value     type       environments
+ BETTER_AUTH_TRUSTED_ORIGINS     Hidden    Sensitive  Production
+ WS_AUTH_SECRET                  Hidden    Sensitive  Production, Preview
+ BETTER_AUTH_SECRET              Hidden    Sensitive  Production, Preview
+ BETTER_AUTH_URL                 Hidden    Sensitive  Production, Preview
+ UPLOADTHING_TOKEN               Hidden    Sensitive  Production, Preview
+ GITHUB_CLIENT_ID/SECRET         Hidden    Sensitive  Production, Preview
+ GOOGLE_CLIENT_ID/SECRET         Hidden    Sensitive  Production, Preview
+ TURSO_DATABASE_URL/AUTH_TOKEN   Hidden    Sensitive  Production, Preview
+ NEXT_PUBLIC_POSTHOG_*           Hidden    Sensitive  Production, Preview
+ NEXT_PUBLIC_REALTIME_URL        Hidden    Sensitive  Production, Preview
+ NEXT_PUBLIC_WS_URL              Hidden    Sensitive  Production, Preview
+ ALLOW_PUBLIC_PREVIEW            Hidden    Sensitive  Production, Preview
+</pre>
+<p>This told us what existed but not what the values were. The earlier "invalid origin" failure taught us that presence is not the same as correctness.</p>
+
+<p><strong>2. Pulling values for comparison.</strong> <code>vercel env pull --environment=production /tmp/opencode/vercel-prod.env</code> produced a working copy with one revealing detail: the <code>NEXT_PUBLIC_*</code> variables came back <strong>readable</strong> and matched the worker URL exactly, while every sensitive variable came back as the literal string <code>[SENSITIVE]</code>. This is Vercel's masking behavior for environment variables of type "Sensitive": their values cannot be read back by either a human or the CLI. It also explained the old <code>.env.vercel</code> file — the previous session had saved an already-masked pull and committed it as if it were real data. The sensitive values were therefore verified indirectly in this pass (section 10), not by reading them back.</p>
+
+<p><strong>3. Deploying.</strong> Two production deploys were made, one per batch of customer-visible changes. Both were one command:</p>
+<pre>
+$ cd /home/samarth/dev/prod/cloud-workspace
+$ vercel deploy --prod
+…
+  Production      https://cloud-workspace-&lt;hash&gt;-samarth-nagar.vercel.app
+▲ Aliased         https://cloud-workspace-nine.vercel.app
+✓ Ready in 36s
+</pre>
+<p>The first deploy (36 s) shipped the Socket.IO migration; the second (32 s) shipped the <code>chat2</code> room fix. Both were aliased to the canonical <code>cloud-workspace-nine.vercel.app</code> immediately. No rollbacks were needed, and no further deploys were made, keeping the free tier happy. For the record, <code>vercel ls --limit 3 --environment production</code> was also used during investigation to see the recent build states, including the earlier failing build of <code>cloud-workspace-d7d0srj4j-…</code>.</p>
+
+<p>One important governance note surfaced during this: the project is git-connected, so a routine <code>git push</code> of <code>dev</code> will trigger another automatic production build of the same tree. Deploying from the CLI and then pushing is therefore one extra build, not drift — the repository must still be pushed so GitHub and the Vercel project carry the code that is live.</p>
+
+<h3>9.3 How the browser verification drove the loop</h3>
+<p>Each deploy was verified by an instrumented browser, not by a status check. The instrumenting init script replaced <code>window.WebSocket</code> with a subclass that appends every connection attempt, open, sent frame, received frame, error, and close to <code>window.__wsLog</code> <em>before</em> the application bundles run. With that in place, the flow executed itself:</p>
+<ol>
+  <li>Load <code>/messages</code>, wait, read <code>__wsLog</code> — expect a token fetch and a socket open to <code>?room=…</code>.</li>
+  <li>Open a conversation, send a message, wait, read <code>__wsLog</code> — expect <code>chat:join</code>, <code>message:send</code> on the wire and <code>message:new</code>/<code>message:sent</code>/<code>conversations:changed</code> back.</li>
+  <li>Reload the page — expect the message to persist.</li>
+</ol>
+<p>Step 2 failed on the first deploy in a way that a status check could never have caught: the socket opened and the frames were sent, but nothing came back and nothing persisted. That single observation — send out, silence in — pinpointed the stale Durable Object instance in minutes. The fix (room <code>chat2</code>), the second deploy, and the re-verification all followed from evidence rather than from re-reading the configuration.</p>
+
+<p>This is the workflow the report's postscript argues should be kept: fix in both repos, verify statically, deploy the worker, deploy the app once per batch, and verify behavior on the live site with an instrumented browser before calling anything complete.</p>
+
+<h2 id="s10">10. Verification results</h2>
 
 <h3>9.1 Verification philosophy</h3>
 <p>Three layers of verification were applied, in increasing fidelity: static checks (does it compile?), endpoint probes (does the gate reject bad input?), and behavioral browser tests (does a real user flow work?). The browser layer was instrumented: an init script replaced <code>window.WebSocket</code> with a subclass that records every attempt, open, send frame, receive frame, error, and close into <code>window.__wsLog</code> before the application code runs. This produced exact wire evidence for every claim below.</p>
@@ -432,7 +499,7 @@ bun run build                                    # all routes compile, exit 0</p
 <p>Bundles fetched from the live site contain no <code>ws://localhost</code> or <code>localhost:3001</code> socket defaults. (The chat socket code chunks load only after sign-in; the login-gated bundle was verified behaviorally in the browser rather than by static grep.)</p>
 
 <!-- =================================================================== -->
-<h2 id="s10">10. Database verification and cleanup</h2>
+<h2 id="s11">11. Database verification and cleanup</h2>
 
 <h3>10.1 Confirming the writes</h3>
 <p>A small script using <code>@libsql/client</code> against the production Turso database read back the test message row and its reaction row exactly as the worker had written them (message id, conversation id, sender, body, and the <code>👍</code> reaction with the correct user). This closes the loop: the browser saw the frames, the reload proved persistence, and the database query proved the rows exist in the same store the REST API reads.</p>
@@ -441,7 +508,7 @@ bun run build                                    # all routes compile, exit 0</p
 <p>All test artifacts — the round-trip message, the reaction row, the two "broadcast test" messages, and the probe message — were deleted from Turso. The production conversation history now contains only authentic messages.</p>
 
 <!-- =================================================================== -->
-<h2 id="s11">11. Current state, risks, and next steps</h2>
+<h2 id="s12">12. Current state, risks, and next steps</h2>
 
 <h3>11.1 Commits</h3>
 <div class="grid">
@@ -451,8 +518,9 @@ bun run build                                    # all routes compile, exit 0</p
 534aecc chore: point NEXT_PUBLIC_WS_URL at the realtime worker
 8448d78 feat(chat): migrate chat realtime from Socket.IO to the Cloudflare worker
 cf152ac fix(chat): use chat2 room to escape a stale Cloudflare DO instance
+(followed by this report's commit)
 </pre>
-<p class="small">Branch is ahead of origin by 3 commits — a <code>git push</code> is required so GitHub and the linked Vercel project carry the same code that is currently deployed.</p>
+<p class="small">Branch is ahead of origin by 4 commits — a <code>git push</code> is required so GitHub and the linked Vercel project carry the same code that is currently deployed.</p>
 </div>
 <div class="card">
 <div class="title">cloud-workspace-realtime (worker, branch <code>main</code>)</div>
@@ -487,7 +555,7 @@ da0806f feat(chat): realtime chat on the worker with Turso persistence
 </ol>
 
 <!-- =================================================================== -->
-<h2 id="s12">12. Appendix</h2>
+<h2 id="s13">13. Appendix</h2>
 
 <h3>A. Files changed</h3>
 <table>
