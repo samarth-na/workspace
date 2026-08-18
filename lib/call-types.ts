@@ -1,6 +1,6 @@
 import type { AvatarUser } from "@/lib/chat-types";
 
-export type CallStatus = "ringing" | "live" | "ended";
+type CallStatus = "ringing" | "live" | "ended";
 
 export type CallSummary = {
   id: string;
@@ -51,24 +51,3 @@ export type CallPeerState = {
 export type CallSignalDescription = RTCSessionDescriptionInit;
 
 export type CallIceCandidate = RTCIceCandidateInit;
-
-export type CallJoinInput = {
-  callId: string;
-  name: string;
-  muted: boolean;
-  cameraOn: boolean;
-};
-
-export type CallStateInput = {
-  callId: string;
-  muted: boolean;
-  cameraOn: boolean;
-  sharing: boolean;
-};
-
-export type CallSignalInput = {
-  callId: string;
-  peerId: string;
-  description?: CallSignalDescription;
-  candidate?: CallIceCandidate;
-};

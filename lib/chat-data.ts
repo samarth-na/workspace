@@ -45,7 +45,7 @@ export function avatarUserFor(row: {
   };
 }
 
-export function getInitials(name: string): string {
+function getInitials(name: string): string {
   return name
     .split(" ")
     .map((part) => part[0])
@@ -196,7 +196,7 @@ export function toChatMessage(
   };
 }
 
-export async function countUnread(
+async function countUnread(
   conversationId: string,
   userId: string,
   lastReadAt: Date | null,

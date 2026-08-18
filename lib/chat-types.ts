@@ -1,4 +1,4 @@
-export type ConversationType = "dm" | "channel" | "group";
+type ConversationType = "dm" | "channel" | "group";
 
 export type AvatarUser = {
   id: string;
@@ -84,20 +84,6 @@ export type ToggleReactionResponse = {
 export type UsersResponse = {
   users: AvatarUser[];
 };
-
-export type ClientEvent =
-  | {
-      type: "message:send";
-      payload: { conversationId: string; body: string; clientId: string };
-    }
-  | {
-      type: "reaction:toggle";
-      payload: { conversationId: string; messageId: string; emoji: string };
-    }
-  | {
-      type: "typing";
-      payload: { conversationId: string; isTyping: boolean };
-    };
 
 export type ServerEvent =
   | { type: "message:new"; payload: ChatMessage }

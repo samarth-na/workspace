@@ -78,7 +78,7 @@ export async function workspaceMemberIds(
   return rows.map((row) => row.userId);
 }
 
-export async function isWorkspaceMember(
+async function isWorkspaceMember(
   workspaceId: string,
   userId: string,
 ): Promise<boolean> {
@@ -122,7 +122,7 @@ export async function fetchWorkspaceMembers(
     }));
 }
 
-export async function findUserByEmail(email: string) {
+async function findUserByEmail(email: string) {
   const rows = await db
     .select({ id: user.id, name: user.name, email: user.email })
     .from(user)

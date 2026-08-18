@@ -44,7 +44,7 @@ export async function fetchFiles(
   return rows.map(toFileItem);
 }
 
-export async function fetchChildCounts(
+async function fetchChildCounts(
   folderIds: string[],
 ): Promise<Map<string, number>> {
   const map = new Map<string, number>();

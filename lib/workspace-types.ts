@@ -35,10 +35,6 @@ export type UpdateWorkspaceInput = {
   logo?: string | null;
 };
 
-export type RenameWorkspaceInput = {
-  name: string;
-};
-
 export type InviteMemberInput = {
   email: string;
 };

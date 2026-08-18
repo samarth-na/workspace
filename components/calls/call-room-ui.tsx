@@ -323,7 +323,7 @@ export function formatElapsed(totalSeconds: number): string {
     : `${pad(minutes)}:${pad(seconds)}`;
 }
 
-export function getInitials(name: string): string {
+function getInitials(name: string): string {
   return name
     .split(" ")
     .map((part) => part[0])

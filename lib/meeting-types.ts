@@ -1,6 +1,6 @@
 import type { AvatarUser } from "@/lib/chat-types";
 
-export type MeetingStatus = "scheduled" | "live" | "ended";
+type MeetingStatus = "scheduled" | "live" | "ended";
 
 export type MeetingSummary = {
   id: string;
@@ -75,24 +75,3 @@ export type MeetingPeerState = {
 export type MeetingSignalDescription = RTCSessionDescriptionInit;
 
 export type MeetingIceCandidate = RTCIceCandidateInit;
-
-export type MeetingJoinInput = {
-  meetingId: string;
-  name: string;
-  muted: boolean;
-  cameraOn: boolean;
-};
-
-export type MeetingStateInput = {
-  meetingId: string;
-  muted: boolean;
-  cameraOn: boolean;
-  sharing: boolean;
-};
-
-export type MeetingSignalInput = {
-  meetingId: string;
-  peerId: string;
-  description?: MeetingSignalDescription;
-  candidate?: MeetingIceCandidate;
-};

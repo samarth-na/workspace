@@ -8,11 +8,6 @@ export type FileItem = {
   createdAt: number;
 };
 
-export type FilesResponse = {
-  files: FileItem[];
-  isPreview: boolean;
-};
-
 export type FolderItem = {
   id: string;
   name: string;

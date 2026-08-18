@@ -8,9 +8,7 @@ import { avatarUserFor } from "@/lib/chat-data";
 import type { AvatarUser } from "@/lib/chat-types";
 import type { MeetingNote, MeetingSummary } from "@/lib/meeting-types";
 
-export type SessionUser = { id: string; name: string; email: string };
-
-export async function fetchMeetingMembers(
+async function fetchMeetingMembers(
   meetingId: string,
 ): Promise<{ id: string; name: string; email: string }[]> {
   const rows = await db
@@ -55,7 +53,7 @@ export async function toMeetingSummary(
   };
 }
 
-export async function listMeetingRows(
+async function listMeetingRows(
   userId: string | null,
   workspaceId: string | null,
   isAdmin: boolean,

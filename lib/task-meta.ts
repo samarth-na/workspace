@@ -44,14 +44,6 @@ export const STATUS_META: Record<
   },
 };
 
-export const PRIORITY_ORDER: TaskPriority[] = [
-  "urgent",
-  "high",
-  "medium",
-  "low",
-  "none",
-];
-
 export const PRIORITY_META: Record<
   TaskPriority,
   { label: string; rank: number }
@@ -62,12 +54,3 @@ export const PRIORITY_META: Record<
   low: { label: "Low", rank: 3 },
   none: { label: "None", rank: 4 },
 };
-
-export const PROJECT_COLORS = [
-  "#5b64d6",
-  "#d97757",
-  "#4caf7d",
-  "#c2913c",
-  "#3f60d9",
-  "#e05d8a",
-];

@@ -12,7 +12,7 @@ import type { AvatarUser } from "@/lib/chat-types";
 const HEARTBEAT_STALE_MS = 90_000;
 const RECENT_WINDOW_MS = 86_400_000;
 
-export async function fetchCallMembers(
+async function fetchCallMembers(
   callId: string,
 ): Promise<{ id: string; name: string; email: string }[]> {
   const rows = await db
@@ -23,7 +23,7 @@ export async function fetchCallMembers(
   return rows;
 }
 
-export async function toCallSummary(
+async function toCallSummary(
   row: typeof call.$inferSelect,
   selfId: string | null,
 ): Promise<CallSummary> {
@@ -55,7 +55,7 @@ export async function toCallSummary(
   };
 }
 
-export async function endStaleCalls(): Promise<void> {
+async function endStaleCalls(): Promise<void> {
   const now = new Date();
   await db
     .update(call)

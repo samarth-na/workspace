@@ -1,11 +1,10 @@
-import type { notificationType, taskPriority, taskStatus } from "@/db/tasks";
+import type { taskPriority, taskStatus } from "@/db/tasks";
 import type { AvatarUser } from "@/lib/chat-types";
 
 export type { AvatarUser } from "@/lib/chat-types";
 
 export type TaskStatus = (typeof taskStatus)[number];
 export type TaskPriority = (typeof taskPriority)[number];
-export type NotificationType = (typeof notificationType)[number];
 
 export type TaskAttachment = {
   fileId: string;
@@ -83,22 +82,4 @@ export type UpdateTaskInput = {
 
 export type UpdateTaskResponse = {
   task: Task;
-};
-
-export type AppNotification = {
-  id: string;
-  type: NotificationType;
-  actorId: string;
-  actorName: string;
-  actorColor: string;
-  taskId: string;
-  taskTitle: string;
-  createdAt: number;
-  readAt: number | null;
-};
-
-export type NotificationsResponse = {
-  notifications: AppNotification[];
-  unreadCount: number;
-  isPreview: boolean;
 };

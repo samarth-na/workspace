@@ -1,13 +1,4 @@
-import {
-  and,
-  desc,
-  eq,
-  inArray,
-  isNotNull,
-  isNull,
-  lte,
-  ne,
-} from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import { file } from "@/db/files";
@@ -21,15 +12,8 @@ import {
 } from "@/db/tasks";
 import { avatarUserFor } from "@/lib/chat-data";
 import { fileUrl } from "@/lib/file-url";
-import type {
-  AppNotification,
-  CreateTaskInput,
-  Task,
-  TaskAttachment,
-} from "@/lib/task-types";
+import type { CreateTaskInput, Task, TaskAttachment } from "@/lib/task-types";
 import { workspaceMemberIds } from "@/lib/workspace-data";
-
-export type { SessionUser } from "@/lib/chat-data";
 
 export async function fetchProjects(workspaceId: string | null) {
   const rows = await db
@@ -54,7 +38,7 @@ export async function fetchWorkspaceUsers(workspaceId: string | null) {
   return rows.map(avatarUserFor);
 }
 
-export async function fetchAttachments(
+async function fetchAttachments(
   taskIds: string[],
   workspaceId: string | null,
 ): Promise<Map<string, TaskAttachment[]>> {
@@ -94,7 +78,7 @@ export async function fetchAttachments(
   return map;
 }
 
-export async function fetchMentions(
+async function fetchMentions(
   taskIds: string[],
 ): Promise<Map<string, { id: string; name: string; email: string }[]>> {
   const map = new Map<string, { id: string; name: string; email: string }[]>();
@@ -334,87 +318,4 @@ async function notifyAssignee(
     actorId: selfId,
     taskId,
   });
-}
-
-export async function fetchNotifications(
-  userId: string,
-  workspaceId: string | null,
-): Promise<AppNotification[]> {
-  await materializeDueReminders(userId, workspaceId);
-  const rows = await db
-    .select({
-      id: notification.id,
-      type: notification.type,
-      actorId: notification.actorId,
-      actorName: user.name,
-      actorEmail: user.email,
-      taskId: notification.taskId,
-      taskTitle: task.title,
-      createdAt: notification.createdAt,
-      readAt: notification.readAt,
-    })
-    .from(notification)
-    .innerJoin(user, eq(user.id, notification.actorId))
-    .innerJoin(task, eq(task.id, notification.taskId))
-    .where(
-      and(
-        eq(notification.userId, userId),
-        workspaceId ? eq(task.workspaceId, workspaceId) : undefined,
-      ),
-    )
-    .orderBy(desc(notification.createdAt))
-    .limit(50);
-  return rows.map((row) => ({
-    id: row.id,
-    type: row.type,
-    actorId: row.actorId,
-    actorName: row.actorName,
-    actorColor: avatarUserFor({
-      id: row.actorId,
-      name: row.actorName,
-      email: row.actorEmail,
-    }).color,
-    taskId: row.taskId,
-    taskTitle: row.taskTitle,
-    createdAt: row.createdAt.getTime(),
-    readAt: row.readAt ? row.readAt.getTime() : null,
-  }));
-}
-
-async function materializeDueReminders(
-  userId: string,
-  workspaceId: string | null,
-): Promise<void> {
-  const tasksWithDueReminders = await db
-    .select({ id: task.id, reminderAt: task.reminderAt })
-    .from(task)
-    .where(
-      and(
-        eq(task.assigneeId, userId),
-        workspaceId ? eq(task.workspaceId, workspaceId) : undefined,
-        ne(task.status, "done"),
-        isNotNull(task.reminderAt),
-        lte(task.reminderAt, new Date()),
-      ),
-    );
-  for (const taskRow of tasksWithDueReminders) {
-    if (!taskRow.reminderAt) continue;
-    await db
-      .insert(notification)
-      .values({
-        id: `reminder-${taskRow.id}-${taskRow.reminderAt.getTime()}`,
-        userId,
-        type: "reminder",
-        actorId: userId,
-        taskId: taskRow.id,
-      })
-      .onConflictDoNothing();
-  }
-}
-
-export async function markNotificationsRead(userId: string): Promise<void> {
-  await db
-    .update(notification)
-    .set({ readAt: new Date() })
-    .where(and(eq(notification.userId, userId), isNull(notification.readAt)));
 }

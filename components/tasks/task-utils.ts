@@ -49,9 +49,3 @@ export function dueLabel(due: number): string {
     day: "numeric",
   });
 }
-
-export function rangeLabel(start: number, due: number): string {
-  const from = new Date(start);
-  const to = new Date(due);
-  return `${from.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${to.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
-}
