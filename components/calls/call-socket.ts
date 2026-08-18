@@ -131,7 +131,7 @@ class RealtimeCallSocket implements CallSocket {
     }
     if (this.manuallyClosed) return;
 
-    const url = `${realtimeUrl}?room=${encodeURIComponent(`call:${this.callId}`)}&token=${encodeURIComponent(token)}`;
+    const url = `${realtimeUrl}?room=${encodeURIComponent(`call:v2:${this.callId}`)}&token=${encodeURIComponent(token)}`;
     const ws = new WebSocket(url);
     this.ws = ws;
     this.lastActivity = Date.now();

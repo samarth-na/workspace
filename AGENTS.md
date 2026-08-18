@@ -57,7 +57,7 @@ Next.js 16 (App Router) + Bun, Drizzle on SQLite (libsql), Better Auth, Tailwind
 
 ## Meetings (realtime)
 
-- Meeting signaling runs on a Cloudflare Worker in a SEPARATE repo (`cloud-workspace-realtime`): Durable Object per `meeting:<id>` room, native WebSocket protocol (`wss://<worker>/?room=meeting:<id>&token=...`), no Socket.IO. Local dev: `wrangler dev` in that repo serves `ws://localhost:8787`.
+- Meeting signaling runs on a Cloudflare Worker in a SEPARATE repo (`cloud-workspace-realtime`): Durable Object per `meeting:<id>` room, native WebSocket protocol (`wss://<worker>/?room=meeting:v2:<id>&token=...`), no Socket.IO. Local dev: `wrangler dev` in that repo serves `ws://localhost:8787`. The worker pings every socket every 20 s and the client reconnects any socket silent for 45 s — idle connections get silently dropped by Cloudflare infra, which empties rooms if nothing pings.
 - The browser client is `components/meetings/meeting-socket.ts` (`createMeetingSocket(meetingId)`); it fetches a short-lived JWT from `app/api/realtime/token/route.ts`, connects with `NEXT_PUBLIC_REALTIME_URL` (default `ws://localhost:8787`), and auto-reconnects with backoff. Meeting event shapes are in `lib/meeting-types.ts` (client/server payloads mirror the worker's `src/contract.ts`).
 - `WS_AUTH_SECRET` signs/verifies the token and must match between this repo's `.env` and the realtime repo's `.dev.vars` (or `wrangler secret put`). The worker also requires the browser `Origin` in its `ALLOWED_ORIGINS`.
 
@@ -67,7 +67,7 @@ Next.js 16 (App Router) + Bun, Drizzle on SQLite (libsql), Better Auth, Tailwind
 - DB tables (`call`, `call_member`) in `db/calls.ts`; REST API in `app/api/calls/`; shared types in `lib/call-types.ts`; data helpers in `lib/call-data.ts`.
 - Lifecycle: created `ringing` → first non-host join flips to `live` → host/admin ends it, or the heartbeat sweep auto-ends it. The sweep runs inside `listCalls`: any non-ended call whose `lastHeartbeatAt` is older than 90 s is marked `ended`, so a call dies when nobody is in it.
 - The room client (`components/calls/use-call-session.ts`) POSTs a heartbeat every 15 s while its socket is connected. Host ends via `endCall` (API + `call:hangup` broadcast); guests `leaveCall` (no end).
-- Realtime runs on the same Cloudflare Worker, but in `call:<id>` rooms; the client is `components/calls/call-socket.ts`. The worker's `call:hangup` event (broadcast to all peers) is defined in the realtime repo's `src/contract.ts` + `src/realtime.ts` — keep them in sync.
+- Realtime runs on the same Cloudflare Worker, but in `call:v2:<id>` rooms; the client is `components/calls/call-socket.ts`. The worker's `call:hangup` event (broadcast to all peers) is defined in the realtime repo's `src/contract.ts` + `src/realtime.ts` — keep them in sync.
 - Entry points: `/call/[id]` full room, `components/calls/call-panel.tsx` embedded overlay started from a chat thread header, `NewCallDialog` on the Calls page. Ended calls appear under "Recent calls" for 24 h; `recordRecent` uses type `call`.
 
 ## Environment

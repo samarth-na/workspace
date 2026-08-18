@@ -129,7 +129,7 @@ class RealtimeMeetingSocket implements MeetingSocket {
     }
     if (this.manuallyClosed) return;
 
-    const url = `${realtimeUrl}?room=${encodeURIComponent(`meeting:${this.meetingId}`)}&token=${encodeURIComponent(token)}`;
+    const url = `${realtimeUrl}?room=${encodeURIComponent(`meeting:v2:${this.meetingId}`)}&token=${encodeURIComponent(token)}`;
     const ws = new WebSocket(url);
     this.ws = ws;
     this.lastActivity = Date.now();
