@@ -72,6 +72,18 @@ Next.js 16 (App Router) + Bun, Drizzle on SQLite (libsql), Better Auth, Tailwind
 
 ## Environment
 
-- `.env` is required and gitignored; `.env.example` is committed. Populate `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, and the OAuth pairs above.
+- `.env` is required and gitignored; `.env.example` is committed. Populate `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, and the OAuth pairs above. `BETTER_AUTH_TRUSTED_ORIGINS` in the local `.env` is `http://localhost:3000` so local login still works now that `BETTER_AUTH_URL` is the production domain.
 - `next.config.ts` enables the React Compiler (`reactCompiler: true`) — write compiler-compatible code (memoization is automatic).
 - `docker-compose.yml` runs the app in Docker with `docker compose up`: `web` (Next dev, port 3000) and a one-shot `deps` install. SQLite is shared through the repo bind mount; host DB tools keep working on the same file.
+- Never create `.env.prod`, `.env.vercel`, or similar scratch env files in this repo. They went wrong before and became traps. The ONLY production source of truth is the Vercel dashboard (or `vercel env`). `.env` is for local dev only.
+
+## Production (live services)
+
+- App: `https://cloud-workspace-nine.vercel.app` (Vercel, git-linked to `dev`). Realtime worker: `https://cloud-workspace-realtime.samarth07nagar.workers.dev` (Cloudflare). Both `NEXT_PUBLIC_REALTIME_URL` and `NEXT_PUBLIC_WS_URL` point at the worker — it is the only realtime endpoint; there is no Socket.IO anywhere anymore.
+- Vercel environment variables are the source of truth. Env vars of type **Sensitive** cannot be read back (`vercel env pull` returns the literal string `[SENSITIVE]` for them); only `NEXT_PUBLIC_*` values come back readable. Verify sensitive values indirectly (browser login, worker handshake), never by pulling.
+- `next.config.ts` has a production guard: when `NODE_ENV=production` and `VERCEL=1`, it requires `BETTER_AUTH_URL` (must be HTTPS), `NEXT_PUBLIC_REALTIME_URL`, `NEXT_PUBLIC_WS_URL`. Do NOT relax this guard to tolerate wrong config — fix the deployed env instead.
+- Worker needs these secrets/deploy vars, in sync between the two repos (worker repo `wrangler secret`/`.dev.vars` and the app's `.env`): `WS_AUTH_SECRET` (token signing, must match both sides), `ALLOWED_ORIGINS` (browser origins; production origin REQUIRED or the deployed browser cannot connect), `TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN` (chat persistence into the same Turso DB the app uses).
+- Production deploys: push `dev` (git-triggered Vercel build) or `vercel deploy --prod`. Free tier — batch deploys, don't spam. The app must be redeployed after any change to `NEXT_PUBLIC_*` values.
+- Verify with a real browser against the live site, not just `curl`. Curl gotchas that have burned sessions here: HTTP/2 strips the `Upgrade` header, so WS probes must use `--http1.1`; a 2xx on `/api/health` or `{"ok":true}` proves nothing about chat/meetings. Instrument `window.WebSocket` in the page and watch the frames.
+- When behavior diverges between local and prod, suspect the deployed env/URL values first (fix the deployed value), never "fix" a guard or introduce a localhost workaround.
+- Cloudflare Durable Object instances keep running the code they were created with for up to 30 days. If a freshly deployed worker looks "silent" (connects but drops all events), your clients are hitting a stale instance for that room name — bump the room name (chat already did this: `chat2`) or run `delete_classes`/`new_sqlite_classes` migrations.
