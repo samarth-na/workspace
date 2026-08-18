@@ -38,7 +38,7 @@ UPLOADTHING_TOKEN=...
 UPLOADTHING_CALLBACK_URL=https://app.example.com/api/uploadthing
 
 WS_AUTH_SECRET=...
-NEXT_PUBLIC_REALTIME_URL=wss://cloud-workspace-realtime.example.workers.dev
+NEXT_PUBLIC_REALTIME_URL=wss://cloud-workspace-realtime.samarth07nagar.workers.dev
 NEXT_PUBLIC_WS_URL=wss://chat.example.com
 ALLOW_PUBLIC_PREVIEW=false
 ```
@@ -119,7 +119,7 @@ Verify the deployed realtime Worker:
 
 ```bash
 cd ../cloud-workspace-realtime
-REALTIME_URL=wss://cloud-workspace-realtime.example.workers.dev \
+REALTIME_URL=wss://cloud-workspace-realtime.samarth07nagar.workers.dev \
 bun scripts/ws-test.ts
 ```
 
