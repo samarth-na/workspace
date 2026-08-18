@@ -14,7 +14,10 @@ if (isProduction && process.env.VERCEL === "1") {
       `Missing Vercel environment variables: ${missing.join(", ")}`,
     );
   }
-  if (!process.env.BETTER_AUTH_URL?.startsWith("https://")) {
+  const authUrl = process.env.BETTER_AUTH_URL ?? "";
+  const isLocalhost =
+    /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/.*)?$/.test(authUrl);
+  if (!authUrl.startsWith("https://") && !isLocalhost) {
     throw new Error("BETTER_AUTH_URL must use HTTPS on Vercel.");
   }
 }
