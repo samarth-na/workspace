@@ -1,9 +1,9 @@
 const AVATAR_PALETTE = [
   "#f5c7b8",
   "#c6d8f5",
-  "#ddd0f3",
+  "#e2e9f7",
   "#d4e8cf",
-  "#d9d6f4",
+  "#c9d8f7",
   "#cde3f0",
   "#f3d9e8",
   "#e8e0cf",
@@ -11,10 +11,10 @@ const AVATAR_PALETTE = [
 ];
 
 const KNOWN_COLORS: Record<string, string> = {
-  "samarth@cloudworkspace.co": "#d9d6f4",
+  "samarth@cloudworkspace.co": "#c9d8f7",
   "maya@cloudworkspace.co": "#f5c7b8",
   "jordan@cloudworkspace.co": "#c6d8f5",
-  "priya@cloudworkspace.co": "#ddd0f3",
+  "priya@cloudworkspace.co": "#e2e9f7",
   "alex@cloudworkspace.co": "#d4e8cf",
 };
 

@@ -6,6 +6,8 @@ import { meeting } from "@/db/meetings";
 import { getSessionUser } from "@/lib/chat-data";
 import { addMeetingMember, getMeeting } from "@/lib/meeting-data";
 import type { MeetingResponse } from "@/lib/meeting-types";
+import { isPublicPreviewEnabled } from "@/lib/public-preview";
+import { recordRecent } from "@/lib/recents-data";
 import { getSessionWorkspace, previewWorkspaceId } from "@/lib/workspace-data";
 
 async function meetingResponse(
@@ -27,11 +29,23 @@ export async function GET(
 ) {
   const { id } = await params;
   const self = await getSessionUser();
+  if (!self && !isPublicPreviewEnabled()) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const context = await getSessionWorkspace();
   const workspaceId = context?.workspaceId ?? (await previewWorkspaceId());
   const data = await meetingResponse(id, self, workspaceId);
   if (!data) {
     return NextResponse.json({ error: "Meeting not found" }, { status: 404 });
+  }
+  if (self) {
+    await recordRecent({
+      userId: self.id,
+      type: "meeting",
+      itemId: id,
+      title: data.meeting.title,
+      href: `/meeting/${id}`,
+    });
   }
   return NextResponse.json<MeetingResponse>(data);
 }
@@ -42,6 +56,9 @@ export async function POST(
 ) {
   const { id } = await params;
   const self = await getSessionUser();
+  if (!self && !isPublicPreviewEnabled()) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const context = await getSessionWorkspace();
   const workspaceId = context?.workspaceId ?? (await previewWorkspaceId());
   const body = (await request.json()) as { action?: string };

@@ -60,7 +60,7 @@ export function LandingNav() {
   const active = useActiveSection();
 
   return (
-    <header className="sticky top-0 z-40 bg-[#eef1f8] px-4 pt-4 sm:px-6">
+    <header className="sticky top-0 z-40 -mb-[76px] bg-transparent px-4 pt-4 sm:px-6">
       <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 rounded-2xl border border-[#e3e5ea] bg-white/80 px-3 py-2.5 shadow-[0_8px_32px_-12px_rgba(35,43,66,0.18),0_2px_6px_rgba(35,43,66,0.05)] backdrop-blur-xl">
         <Link href="/" aria-label="Cloud Workspace home" className="pl-1">
           <Logo />

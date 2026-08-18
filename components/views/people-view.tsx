@@ -21,7 +21,7 @@ const people = [
     name: "Priya Shah",
     role: "Product marketing",
     initials: "PS",
-    color: "bg-[#ddd0f3]",
+    color: "bg-[#e2e9f7]",
   },
   {
     name: "Alex Morgan",
@@ -48,7 +48,7 @@ function PeopleView() {
           >
             <span
               className={cn(
-                "flex size-11 items-center justify-center rounded-full text-[12px] font-semibold text-[#514e9a]",
+                "flex size-11 items-center justify-center rounded-full text-[12px] font-semibold text-[#31518e]",
                 person.color,
               )}
             >

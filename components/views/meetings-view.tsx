@@ -334,7 +334,7 @@ function LiveMeetingCard({
     <div className="rounded-2xl bg-[#242d47] p-7 text-white">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-[#b9c0ed]">
-          <span className="size-1.5 rounded-full bg-[#aeb7ff]" /> Live now
+          <span className="size-1.5 rounded-full bg-[#9cb8f7]" /> Live now
         </span>
         <div className="flex items-center gap-2">
           <Button
@@ -678,7 +678,7 @@ function NoteRow({ note, dark }: { note: MeetingNote; dark: boolean }) {
       <span
         className={cn(
           "mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-[8px] font-semibold",
-          dark ? "text-[#31518e]" : "text-[#514e9a]",
+          dark ? "text-[#31518e]" : "text-[#31518e]",
         )}
         style={{ backgroundColor: note.author.color }}
       >
@@ -824,7 +824,7 @@ function AssignPopover({
                       onClick={() => toggle(person.id)}
                     >
                       <span
-                        className="flex size-6 shrink-0 items-center justify-center rounded-full text-[9px] font-semibold text-[#514e9a]"
+                        className="flex size-6 shrink-0 items-center justify-center rounded-full text-[9px] font-semibold text-[#31518e]"
                         style={{ backgroundColor: person.color }}
                       >
                         {person.initials}

@@ -19,6 +19,7 @@ import type {
   CreateGroupInput,
   CreateGroupResponse,
 } from "@/lib/chat-types";
+import { isPublicPreviewEnabled } from "@/lib/public-preview";
 import {
   getSessionWorkspace,
   previewWorkspaceId,
@@ -27,6 +28,9 @@ import {
 
 export async function GET() {
   const self = await getSessionUser();
+  if (!self && !isPublicPreviewEnabled()) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const context = await getSessionWorkspace();
   const workspaceId = context?.workspaceId ?? (await previewWorkspaceId());
   const conversations = await Promise.all(

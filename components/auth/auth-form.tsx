@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader } from "pixelarticons/react";
+import posthog from "posthog-js";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,8 +37,19 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
       : await authClient.signUp.email({ name, email, password });
     setLoading(false);
     if (result.error) {
+      if (process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN) {
+        posthog.capture("auth_failed", {
+          method: "email",
+          mode,
+        });
+      }
       setError(result.error.message ?? "Something went wrong. Try again.");
       return;
+    }
+    if (process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN) {
+      posthog.capture(isSignIn ? "signed_in" : "signed_up", {
+        method: "email",
+      });
     }
     router.push("/home");
     router.refresh();
@@ -153,9 +165,18 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
             type="button"
             variant="outline"
             size="lg"
-            onClick={() =>
-              authClient.signIn.social({ provider: "google", callbackURL: "/" })
-            }
+            onClick={() => {
+              if (process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN) {
+                posthog.capture("auth_started", {
+                  method: "google",
+                  mode,
+                });
+              }
+              void authClient.signIn.social({
+                provider: "google",
+                callbackURL: "/",
+              });
+            }}
           >
             <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
               <path
@@ -181,9 +202,18 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
             type="button"
             variant="outline"
             size="lg"
-            onClick={() =>
-              authClient.signIn.social({ provider: "github", callbackURL: "/" })
-            }
+            onClick={() => {
+              if (process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN) {
+                posthog.capture("auth_started", {
+                  method: "github",
+                  mode,
+                });
+              }
+              void authClient.signIn.social({
+                provider: "github",
+                callbackURL: "/",
+              });
+            }}
           >
             <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
               <path

@@ -8,12 +8,15 @@ import { user } from "@/db/schema";
 import {
   aggregateReactions,
   conversationBelongsToWorkspace,
+  fetchMembers,
   fetchReactionRows,
   getSessionUser,
   isMember,
   toChatMessage,
 } from "@/lib/chat-data";
 import type { MessagesResponse } from "@/lib/chat-types";
+import { isPublicPreviewEnabled } from "@/lib/public-preview";
+import { recordRecent } from "@/lib/recents-data";
 import { getSessionWorkspace, previewWorkspaceId } from "@/lib/workspace-data";
 
 export async function GET(
@@ -22,6 +25,9 @@ export async function GET(
 ) {
   const { id } = await params;
   const self = await getSessionUser();
+  if (!self && !isPublicPreviewEnabled()) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const conversations = await db
     .select()
     .from(conversation)
@@ -49,6 +55,25 @@ export async function GET(
   const beforeRaw = searchParams.get("before");
   const limitRaw = searchParams.get("limit");
   const beforeMs = beforeRaw === null ? NaN : Number(beforeRaw);
+  if (self && !Number.isFinite(beforeMs)) {
+    const row = conversations[0];
+    let title =
+      row.name ?? (row.type === "dm" ? "Direct message" : "Conversation");
+    if (row.type === "dm") {
+      const peer = (await fetchMembers(row.id)).find(
+        (member) => member.id !== self.id,
+      );
+      if (peer) title = peer.name;
+    }
+    await recordRecent({
+      userId: self.id,
+      type: "conversation",
+      itemId: row.id,
+      title,
+      href: `/messages/${row.id}`,
+    });
+  }
+
   let limit = 50;
   if (limitRaw !== null) {
     const parsed = Number.parseInt(limitRaw, 10);

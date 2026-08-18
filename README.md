@@ -1,6 +1,17 @@
 # Cloud Workspace
 
+One app one shared workspace, everything in one place, messages, group chats, tasks, timelines, calendar, meetings, files.
 A clean, Linear-style workspace for small teams. Conversations, calls, files, and documents live in one place. The UI is light-only and follows Notion and Linear conventions.
+
+## features -
+
+1. messages
+2. group chats
+3. video calls
+4. meetings scheduling
+5. task management system
+6. cloud file storage
+7. shared data
 
 ## Stack
 
@@ -69,10 +80,19 @@ bun run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+PostHog analytics starts when `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` is set. Use the project token and ingestion host from your PostHog project settings:
+
+```bash
+NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN=phc_...
+NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
+```
+
+The client captures pageviews and authenticated user identity. Session replay and autocapture use strict masking defaults so workspace content is not sent as readable text.
+
 ## Database
 
 - Local development uses SQLite at `db/../sqlite.db` or via `DATABASE_URL="file:..."`.
-- Production uses Turso. Set `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`; in production these win over `DATABASE_URL`; in development `DATABASE_URL` (SQLite) wins. Create a database with:
+- Production uses Turso. Set `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`. In production these win over `DATABASE_URL`; in development `DATABASE_URL` (SQLite) wins. Create a database with:
 
 ```bash
 turso db create cloud-workspace
@@ -86,17 +106,17 @@ turso db tokens create cloud-workspace
 
 ## Scripts
 
-| Command | What it does |
-| --- | --- |
-| `bun run dev` | Start the dev server |
-| `bun run build` | Production build |
-| `bun run start` | Run the production build |
-| `bun run lint` | Biome check (no ESLint) |
-| `bun run format` | Biome format |
-| `bun run db:generate` | Schema to `drizzle/` SQL |
-| `bun run db:migrate` | Apply migrations |
-| `bun run db:push` | Push schema without migration files |
-| `bun run db:studio` | Open the database GUI |
+| Command               | What it does                        |
+| --------------------- | ----------------------------------- |
+| `bun run dev`         | Start the dev server                |
+| `bun run build`       | Production build                    |
+| `bun run start`       | Run the production build            |
+| `bun run lint`        | Biome check (no ESLint)             |
+| `bun run format`      | Biome format                        |
+| `bun run db:generate` | Schema to `drizzle/` SQL            |
+| `bun run db:migrate`  | Apply migrations                    |
+| `bun run db:push`     | Push schema without migration files |
+| `bun run db:studio`   | Open the database GUI               |
 
 ## Structure
 

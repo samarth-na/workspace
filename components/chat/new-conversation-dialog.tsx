@@ -202,7 +202,7 @@ function NewConversationDialog({ onClose }: { onClose: () => void }) {
                         )}
                       >
                         <span
-                          className="flex size-8 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-[#514e9a]"
+                          className="flex size-8 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-[#31518e]"
                           style={{ backgroundColor: user.color }}
                         >
                           {user.initials}
@@ -248,7 +248,7 @@ function NewConversationDialog({ onClose }: { onClose: () => void }) {
                     className="flex items-center gap-1.5 rounded-full bg-[#eef0ff] py-1 pl-1 pr-2 text-[11px] font-medium text-[#535dc9]"
                   >
                     <span
-                      className="flex size-4 items-center justify-center rounded-full text-[7px] font-semibold text-[#514e9a]"
+                      className="flex size-4 items-center justify-center rounded-full text-[7px] font-semibold text-[#31518e]"
                       style={{ backgroundColor: user.color }}
                     >
                       {user.initials}

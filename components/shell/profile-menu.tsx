@@ -8,6 +8,7 @@ import {
   Logout,
   Settings2,
 } from "pixelarticons/react";
+import posthog from "posthog-js";
 import { useRef, useState } from "react";
 
 import { Avatar } from "@/components/shared/avatar";
@@ -63,6 +64,9 @@ export function ProfileMenu({
   const signOut = async () => {
     setSigningOut(true);
     await authClient.signOut();
+    if (process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN) {
+      posthog.reset();
+    }
     router.push("/sign-in");
     router.refresh();
   };
@@ -96,7 +100,7 @@ export function ProfileMenu({
             <Avatar
               src={userImage}
               name={userName}
-              className="size-9 rounded-full bg-[#d9d6f4] text-[11px] text-[#514e9a]"
+              className="size-9 rounded-full bg-[#d9d6f4] text-[11px] text-[#31518e]"
             />
             {isSignedIn ? (
               <span className="absolute -bottom-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full border border-white bg-[#eef0f4] text-[#7d8494]">

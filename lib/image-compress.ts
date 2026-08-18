@@ -72,13 +72,13 @@ function downscale(
       context.imageSmoothingQuality = "high";
       context.drawImage(image, 0, 0, targetWidth, targetHeight);
       const base = file.name.replace(/\.[^.]+$/, "");
-      const encode = (type: string, ext: string, quality?: number) =>
+      const encode = (type: string, quality?: number) =>
         new Promise<Blob | null>((resolveBlob) => {
           canvas.toBlob(resolveBlob, type, quality);
         });
-      void encode("image/webp", "webp", 0.85)
+      void encode("image/webp", 0.85)
         .then(async (webpBlob) => {
-          const blob = webpBlob ?? (await encode("image/png", "png"));
+          const blob = webpBlob ?? (await encode("image/png"));
           if (!blob) {
             reject(new Error("Could not compress the image"));
             return;

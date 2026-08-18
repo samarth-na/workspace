@@ -117,7 +117,7 @@ function ConversationRow({
       <span className="flex min-w-0 items-center gap-2.5">
         {peer ? (
           <span
-            className="flex size-6 shrink-0 items-center justify-center rounded-full text-[9px] font-semibold text-[#514e9a]"
+            className="flex size-6 shrink-0 items-center justify-center rounded-full text-[9px] font-semibold text-[#31518e]"
             style={{ backgroundColor: peer.color }}
           >
             {peer.initials}

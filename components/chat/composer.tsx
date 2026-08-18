@@ -83,7 +83,7 @@ function Composer({
         id: "me",
         name: userName,
         initials: getInitials(userName),
-        color: "#d9d6f4",
+        color: "#c9d8f7",
       },
       body,
       createdAt: Date.now(),

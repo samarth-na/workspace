@@ -371,7 +371,7 @@ function HeroMockup() {
 
 function Hero() {
   return (
-    <section className="relative overflow-hidden pt-16 pb-20 sm:pt-20">
+    <section className="relative overflow-hidden pt-20 pb-20 sm:pt-24">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-96 bg-gradient-to-b from-[#eef1f8] to-transparent" />
       <div className="relative mx-auto w-full max-w-6xl px-5 text-center sm:px-8">
         <Link
@@ -993,9 +993,9 @@ function Footer() {
 
 export function LandingPage() {
   return (
-    <div className="flex min-h-dvh flex-col bg-[#fafbfc]">
-      <LandingNav />
+    <div>
       <main className="flex-1">
+        <LandingNav />
         <Hero />
         <CapabilityStrip />
         <Features />

@@ -75,7 +75,7 @@ export function Header({
           <Avatar
             src={userImage}
             name={userName}
-            className="size-8 rounded-full bg-[#d9d6f4] text-[10px] text-[#514e9a]"
+            className="size-8 rounded-full bg-[#d9d6f4] text-[10px] text-[#31518e]"
           />
         </button>
       </div>

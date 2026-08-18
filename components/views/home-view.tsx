@@ -28,7 +28,7 @@ const KIND_META = {
   presentation: {
     label: "Presentation",
     icon: Presentation,
-    tone: "bg-[#f3e8fb] text-[#8b5cf6]",
+    tone: "bg-[#e2e9f7] text-[#3f60d9]",
   },
   video: {
     label: "Video",
@@ -408,7 +408,7 @@ function MeetingRow({
           {meeting.members.slice(0, 4).map((member) => (
             <span
               key={member.id}
-              className="flex size-6 items-center justify-center rounded-full border-2 border-white text-[8px] font-semibold text-[#514e9a]"
+              className="flex size-6 items-center justify-center rounded-full border-2 border-white text-[8px] font-semibold text-[#31518e]"
               style={{ backgroundColor: member.color }}
             >
               {member.initials}
