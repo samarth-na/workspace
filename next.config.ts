@@ -2,7 +2,12 @@ import type { NextConfig } from "next";
 
 const isProduction = process.env.NODE_ENV === "production";
 
-if (isProduction && process.env.VERCEL === "1") {
+const isVercelDeploy =
+  process.env.VERCEL === "1" &&
+  (process.env.VERCEL_ENV === "production" ||
+    process.env.VERCEL_ENV === "preview");
+
+if (isProduction && isVercelDeploy) {
   const required = [
     "BETTER_AUTH_URL",
     "NEXT_PUBLIC_REALTIME_URL",
@@ -14,10 +19,7 @@ if (isProduction && process.env.VERCEL === "1") {
       `Missing Vercel environment variables: ${missing.join(", ")}`,
     );
   }
-  const authUrl = process.env.BETTER_AUTH_URL ?? "";
-  const isLocalhost =
-    /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/.*)?$/.test(authUrl);
-  if (!authUrl.startsWith("https://") && !isLocalhost) {
+  if (!process.env.BETTER_AUTH_URL?.startsWith("https://")) {
     throw new Error("BETTER_AUTH_URL must use HTTPS on Vercel.");
   }
 }
@@ -40,7 +42,7 @@ const contentSecurityPolicy = [
   "form-action 'self'",
   "frame-ancestors 'none'",
   "object-src 'none'",
-  "script-src 'self' 'unsafe-inline'",
+  "script-src 'self' 'unsafe-inline' https://us-assets.i.posthog.com",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://utfs.io https://*.utfs.io",
   "font-src 'self' data:",
