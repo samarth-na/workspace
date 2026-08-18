@@ -212,7 +212,7 @@
   <tr>
     <td><code>.env.vercel</code></td>
     <td>Snapshot of Vercel variables</td>
-    <td>Contained literal <code>[SENSITIVE]</code> strings in place of a dozen values — the result of a human/AI redacting a <code>vercel env pull</code> output that was then saved. As a file it was useless; as a source of truth it was dangerous, because a value of <code>"[SENSITIVE]"</code> is a valid non-empty string that would have propagated into builds.</td>
+    <td>Contained literal <code>SENSITIVE</code> strings in place of a dozen values — the result of a human/AI redacting a <code>vercel env pull</code> output that was then saved. As a file it was useless; as a source of truth it was dangerous, because a value of <code>"SENSITIVE"</code> is a valid non-empty string that would have propagated into builds.</td>
   </tr>
   <tr>
     <td><code>.env.example</code></td>
@@ -289,13 +289,13 @@
 <h3>5.1 Decisions and deletions</h3>
 <ul>
   <li><strong>Deleted <code>.env.prod</code></strong>. It contained a placeholder domain and an empty public URL. No build step, container, or configuration tool referenced it; it existed only as a misleading artifact from an earlier session. Deleting it removes the risk of a future build sourcing it.</li>
-  <li><strong>Deleted <code>.env.vercel</code></strong>. Its literal <code>[SENSITIVE]</code> values were neither real nor functional. Vercel variables are managed in the dashboard or via <code>vercel env</code>, not by committing a redacted pull.</li>
+  <li><strong>Deleted <code>.env.vercel</code></strong>. Its literal <code>SENSITIVE</code> values were neither real nor functional. Vercel variables are managed in the dashboard or via <code>vercel env</code>, not by committing a redacted pull.</li>
   <li><strong>Added <code>BETTER_AUTH_TRUSTED_ORIGINS="http://localhost:3000"</code> to the local <code>.env</code>.</strong> The local file already carried the production <code>BETTER_AUTH_URL</code>. Better Auth derives <code>trustedOrigins</code> from <code>BETTER_AUTH_TRUSTED_ORIGINS</code> and falls back to <code>BETTER_AUTH_URL</code>. With the base URL now the production domain, a localhost origin would be rejected on local login. The explicit localhost trusted origin restores local sign-in without affecting production, because Vercel-injected environment variables take precedence over <code>.env</code> files during the production build.</li>
   <li><strong>Kept <code>.env.example</code> in its current form</strong> (real worker URLs, empty tokens) and <code>.env.local</code> (Vercel OIDC token) as-is.</li>
 </ul>
 
 <h3>5.2 The Vercel variable surface</h3>
-<p><code>vercel env ls production</code> showed a complete, if unverifiable, set: <code>BETTER_AUTH_SECRET</code>, <code>BETTER_AUTH_URL</code>, <code>BETTER_AUTH_TRUSTED_ORIGINS</code>, <code>WS_AUTH_SECRET</code>, the OAuth pairs, <code>UPLOADTHING_TOKEN</code>, the Turso pair, the PostHog pair, both public socket URLs, and <code>ALLOW_PUBLIC_PREVIEW</code>. Most are typed <code>Sensitive</code>, which means <code>vercel env pull</code> returns <code>[SENSITIVE]</code> for them and their values cannot be read back. The <code>NEXT_PUBLIC_*</code> values were readable in the fresh pull and matched the worker URL exactly. The sensitive values were therefore verified indirectly: by the live browser login session that succeeded during testing, by the worker handshake accepting the token signed with the shared secret, and by the fact that the deployed bundle (fetched from the live site) contains no localhost references for the socket endpoints.</p>
+<p><code>vercel env ls production</code> showed a complete, if unverifiable, set: <code>BETTER_AUTH_SECRET</code>, <code>BETTER_AUTH_URL</code>, <code>BETTER_AUTH_TRUSTED_ORIGINS</code>, <code>WS_AUTH_SECRET</code>, the OAuth pairs, <code>UPLOADTHING_TOKEN</code>, the Turso pair, the PostHog pair, both public socket URLs, and <code>ALLOW_PUBLIC_PREVIEW</code>. Most are typed <code>Sensitive</code>, which means <code>vercel env pull</code> returns <code>SENSITIVE</code> for them and their values cannot be read back. The <code>NEXT_PUBLIC_*</code> values were readable in the fresh pull and matched the worker URL exactly. The sensitive values were therefore verified indirectly: by the live browser login session that succeeded during testing, by the worker handshake accepting the token signed with the shared secret, and by the fact that the deployed bundle (fetched from the live site) contains no localhost references for the socket endpoints.</p>
 
 <h3>5.3 Documentation remediation</h3>
 <ul>
@@ -424,7 +424,7 @@ bun run build                                    # all routes compile, exit 0</p
 </pre>
 <p>This told us what existed but not what the values were. The earlier "invalid origin" failure taught us that presence is not the same as correctness.</p>
 
-<p><strong>2. Pulling values for comparison.</strong> <code>vercel env pull --environment=production /tmp/opencode/vercel-prod.env</code> produced a working copy with one revealing detail: the <code>NEXT_PUBLIC_*</code> variables came back <strong>readable</strong> and matched the worker URL exactly, while every sensitive variable came back as the literal string <code>[SENSITIVE]</code>. This is Vercel's masking behavior for environment variables of type "Sensitive": their values cannot be read back by either a human or the CLI. It also explained the old <code>.env.vercel</code> file — the previous session had saved an already-masked pull and committed it as if it were real data. The sensitive values were therefore verified indirectly in this pass (section 10), not by reading them back.</p>
+<p><strong>2. Pulling values for comparison.</strong> <code>vercel env pull --environment=production /tmp/opencode/vercel-prod.env</code> produced a working copy with one revealing detail: the <code>NEXT_PUBLIC_*</code> variables came back <strong>readable</strong> and matched the worker URL exactly, while every sensitive variable came back as the literal string <code>SENSITIVE</code>. This is Vercel's masking behavior for environment variables of type "Sensitive": their values cannot be read back by either a human or the CLI. It also explained the old <code>.env.vercel</code> file — the previous session had saved an already-masked pull and committed it as if it were real data. The sensitive values were therefore verified indirectly in this pass (section 10), not by reading them back.</p>
 
 <p><strong>3. Deploying.</strong> Two production deploys were made, one per batch of customer-visible changes. Both were one command:</p>
 <pre>

@@ -69,6 +69,8 @@ class RealtimeChatSocket implements ChatSocket {
   private joinedConversationIds = new Set<string>();
   private manuallyClosed = false;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
+  private watchdogTimer: ReturnType<typeof setInterval> | null = null;
+  private lastActivity = 0;
   private attempt = 0;
   private connectedValue = false;
 
@@ -122,6 +124,10 @@ class RealtimeChatSocket implements ChatSocket {
       clearTimeout(this.retryTimer);
       this.retryTimer = null;
     }
+    if (this.watchdogTimer !== null) {
+      clearInterval(this.watchdogTimer);
+      this.watchdogTimer = null;
+    }
     this.ws?.close();
     this.ws = null;
   }
@@ -150,6 +156,7 @@ class RealtimeChatSocket implements ChatSocket {
     const url = `${chatWebSocketUrl}?room=chat2&token=${encodeURIComponent(token)}`;
     const ws = new WebSocket(url);
     this.ws = ws;
+    this.lastActivity = Date.now();
     ws.onopen = () => {
       this.attempt = 0;
       this.connectedValue = true;
@@ -164,6 +171,7 @@ class RealtimeChatSocket implements ChatSocket {
       }
     };
     ws.onmessage = (event) => {
+      this.lastActivity = Date.now();
       let message: { type?: unknown; payload?: unknown };
       try {
         message = JSON.parse(String(event.data)) as {
@@ -182,6 +190,21 @@ class RealtimeChatSocket implements ChatSocket {
       this.dispatch("disconnect", {});
       if (!this.manuallyClosed) this.scheduleReconnect();
     };
+    if (this.watchdogTimer !== null) {
+      clearInterval(this.watchdogTimer);
+      this.watchdogTimer = null;
+    }
+    this.watchdogTimer = setInterval(() => {
+      if (
+        this.manuallyClosed ||
+        this.ws === null ||
+        this.ws.readyState !== WebSocket.OPEN ||
+        Date.now() - this.lastActivity < 45_000
+      ) {
+        return;
+      }
+      this.ws.close();
+    }, 10_000);
   }
 
   private scheduleReconnect(): void {
