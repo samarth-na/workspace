@@ -52,7 +52,7 @@ Next.js 16 (App Router) + Bun, Drizzle on SQLite (libsql), Better Auth, Tailwind
 
 - DB tables (`conversation`, `conversation_member`, `message`, `message_reaction`) live in `db/chat.ts` — separate from the generated `db/schema.ts`; `drizzle.config.ts` schema is an array of both. Demo data: `bun run db:seed` (idempotent; creates demo users, 3 channels, DMs, seeded messages/unreads).
 - REST API in `app/api/chat/` (conversations, messages, read, reactions, users, create-DM). Signed-out requests get a read-only "preview" view of seeded data; writes require a session.
-- Real-time runs over Socket.IO on a SEPARATE process: `bun run ws` (`ws/server.ts`, port 3001, env `WS_PORT`). The browser client (`components/chat/chat-socket.ts`) connects to `NEXT_PUBLIC_WS_URL` (default `ws://localhost:3001`) and falls back to REST sends + 5s polling when disconnected. After any `db:push`/`db:migrate`/reseed that replaces `sqlite.db`, restart `bun run ws` — a running process keeps a stale handle on the deleted file and writes silently go nowhere.
+- Real-time runs on the Cloudflare Worker (`cloud-workspace-realtime`, native WebSocket): the browser client (`components/chat/chat-socket.ts`) fetches a short-lived JWT from `app/api/realtime/token/route.ts`, connects to `NEXT_PUBLIC_WS_URL` (`?room=chat`), and speaks the worker's JSON protocol from `lib/chat-types.ts` (which mirrors the worker's `src/contract.ts` — keep them in sync). Messages are persisted by the worker into the same Turso database the app uses (worker env: `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`). When the socket is disconnected, the UI falls back to REST sends + 5 s polling (`isSocketConnected()` gates this). All chat sockets share one DO instance via the fixed `chat` room name; conversation targeting uses `conv:<id>` and `user:<id>` room sets inside it.
 - Chat UI in `components/chat/` (conversation list, thread, composer, reactions, new-message dialog); pages under `app/(workspace)/messages/`. Shared request/response + WS event types in `lib/chat-types.ts`; shared query/build helpers in `lib/chat-data.ts`.
 
 ## Meetings (realtime)
@@ -74,4 +74,4 @@ Next.js 16 (App Router) + Bun, Drizzle on SQLite (libsql), Better Auth, Tailwind
 
 - `.env` is required and gitignored; `.env.example` is committed. Populate `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, and the OAuth pairs above.
 - `next.config.ts` enables the React Compiler (`reactCompiler: true`) — write compiler-compatible code (memoization is automatic).
-- `docker-compose.yml` runs the app in Docker with `docker compose up`: `web` (Next dev, port 3000), `ws` (Socket.IO, port 3001), and a one-shot `deps` install. SQLite is shared through the repo bind mount; host DB tools keep working on the same file.
+- `docker-compose.yml` runs the app in Docker with `docker compose up`: `web` (Next dev, port 3000) and a one-shot `deps` install. SQLite is shared through the repo bind mount; host DB tools keep working on the same file.

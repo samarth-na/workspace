@@ -2,7 +2,7 @@
 
 This app runs on Vercel. Turso provides the production database. UploadThing
 provides file storage. The Cloudflare Worker in `cloud-workspace-realtime`
-provides meeting and call signaling.
+provides meeting, call, and chat signaling.
 
 ## Vercel Project
 
@@ -10,7 +10,7 @@ provides meeting and call signaling.
 2. Select the **Next.js** framework preset.
 3. Set the project root to this repository.
 4. Use `bun run build` as the build command.
-5. Do not run `bun run dev` or `bun run ws` on Vercel.
+5. Do not run `bun run dev` on Vercel.
 6. Deploy only after applying database migrations.
 
 Vercel detects `bun.lock` and uses Bun for the build. `NEXT_PUBLIC_*` values
@@ -39,15 +39,16 @@ UPLOADTHING_CALLBACK_URL=https://app.example.com/api/uploadthing
 
 WS_AUTH_SECRET=...
 NEXT_PUBLIC_REALTIME_URL=wss://cloud-workspace-realtime.samarth07nagar.workers.dev
-NEXT_PUBLIC_WS_URL=wss://chat.example.com
+NEXT_PUBLIC_WS_URL=wss://cloud-workspace-realtime.samarth07nagar.workers.dev
 ALLOW_PUBLIC_PREVIEW=false
 ```
 
 Keep secrets server-side. Do not prefix secrets with `NEXT_PUBLIC_`.
 
-`NEXT_PUBLIC_WS_URL` points to the separate Socket.IO chat service. Deploy
-that service separately, or migrate chat to the Cloudflare Worker before
-removing it.
+`NEXT_PUBLIC_WS_URL` and `NEXT_PUBLIC_REALTIME_URL` both point to the
+Cloudflare Worker. Chat, meetings, and calls all run on that Worker. The
+Worker persists chat messages into the same Turso database (see the Worker
+secrets below).
 
 ## Database Release
 
@@ -92,6 +93,13 @@ Set `WS_AUTH_SECRET` to the same value in Vercel and Cloudflare. Set
 
 ```bash
 printf 'https://app.example.com' | bunx wrangler secret put ALLOWED_ORIGINS
+```
+
+Set the Worker database secrets to the same Turso database the app uses:
+
+```bash
+printf 'libsql://...' | bunx wrangler secret put TURSO_DATABASE_URL
+printf '...' | bunx wrangler secret put TURSO_AUTH_TOKEN
 ```
 
 Use `wss://` in production. The Worker rejects unlisted browser origins.
