@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { CallRoom } from "@/components/calls/call-room";
+import { auth } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Call | Cloud Workspace",
@@ -14,11 +17,13 @@ function RoomFallback() {
   );
 }
 
-export default function CallPage({
+export default async function CallPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) redirect("/sign-in");
   return (
     <Suspense fallback={<RoomFallback />}>
       <CallLoader params={params} />

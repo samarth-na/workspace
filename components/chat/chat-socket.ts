@@ -4,6 +4,7 @@ import type {
   MessageReaction,
   ServerEvent,
 } from "@/lib/chat-types";
+import { chatWebSocketUrl } from "@/lib/client-config";
 
 type ClientToServerEvents = {
   "chat:join": (payload: { conversationIds: string[] }) => void;
@@ -43,13 +44,11 @@ type ServerToClientEvents = {
 
 type ChatSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:3001";
-
 let socket: ChatSocket | null = null;
 
 export function getChatSocket(): ChatSocket {
   if (socket === null) {
-    socket = io(WS_URL, {
+    socket = io(chatWebSocketUrl, {
       autoConnect: true,
       withCredentials: true,
     }) as ChatSocket;

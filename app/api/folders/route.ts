@@ -8,12 +8,16 @@ import {
   fetchFolderRow,
   fetchFolders,
 } from "@/lib/files-data";
+import { isPublicPreviewEnabled } from "@/lib/public-preview";
 import { getSessionWorkspace, previewWorkspaceId } from "@/lib/workspace-data";
 
 const MAX_NAME_LENGTH = 100;
 
 export async function GET(request: Request) {
   const self = await getSessionUser();
+  if (!self && !isPublicPreviewEnabled()) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const context = await getSessionWorkspace();
   const workspaceId = context?.workspaceId ?? (await previewWorkspaceId());
   const url = new URL(request.url);

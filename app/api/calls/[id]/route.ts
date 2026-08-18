@@ -6,6 +6,7 @@ import { call } from "@/db/calls";
 import { addCallMember, getCall } from "@/lib/call-data";
 import type { CallResponse } from "@/lib/call-types";
 import { getSessionUser } from "@/lib/chat-data";
+import { isPublicPreviewEnabled } from "@/lib/public-preview";
 import { recordRecent } from "@/lib/recents-data";
 import { getSessionWorkspace, previewWorkspaceId } from "@/lib/workspace-data";
 
@@ -28,6 +29,9 @@ export async function GET(
 ) {
   const { id } = await params;
   const self = await getSessionUser();
+  if (!self && !isPublicPreviewEnabled()) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const context = await getSessionWorkspace();
   const workspaceId = context?.workspaceId ?? (await previewWorkspaceId());
   const data = await callResponse(id, self, workspaceId);
@@ -57,6 +61,9 @@ export async function POST(
 ) {
   const { id } = await params;
   const self = await getSessionUser();
+  if (!self && !isPublicPreviewEnabled()) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const context = await getSessionWorkspace();
   const workspaceId = context?.workspaceId ?? (await previewWorkspaceId());
   const body = (await request.json()) as { action?: string };

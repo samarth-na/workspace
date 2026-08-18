@@ -20,6 +20,7 @@ import {
   toFileItem,
   WORKSPACE_STORAGE_LIMIT,
 } from "@/lib/files-data";
+import { isPublicPreviewEnabled } from "@/lib/public-preview";
 import { recordRecent } from "@/lib/recents-data";
 import { utapi } from "@/lib/uploadthing";
 import { getSessionWorkspace, previewWorkspaceId } from "@/lib/workspace-data";
@@ -30,6 +31,9 @@ const KEY_PATTERN = /^[a-z0-9_-]{8,128}$/i;
 
 export async function GET(request: Request) {
   const self = await getSessionUser();
+  if (!self && !isPublicPreviewEnabled()) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const context = await getSessionWorkspace();
   const workspaceId = context?.workspaceId ?? (await previewWorkspaceId());
   const url = new URL(request.url);

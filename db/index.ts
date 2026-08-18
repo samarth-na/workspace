@@ -3,20 +3,24 @@ import { createClient as createWebClient } from "@libsql/client/web";
 import { drizzle } from "drizzle-orm/libsql";
 
 const isProduction = process.env.NODE_ENV === "production";
-const url = isProduction
-  ? (process.env.TURSO_DATABASE_URL ?? process.env.DATABASE_URL)
-  : (process.env.DATABASE_URL ?? process.env.TURSO_DATABASE_URL);
+const tursoUrl = process.env.TURSO_DATABASE_URL;
+const tursoAuthToken = process.env.TURSO_AUTH_TOKEN;
+const url = isProduction ? tursoUrl : (process.env.DATABASE_URL ?? tursoUrl);
 
-if (!url && isProduction) {
+if (isProduction && (!tursoUrl || !tursoAuthToken)) {
   throw new Error(
-    "Database URL is missing. Set TURSO_DATABASE_URL (or DATABASE_URL) for production.",
+    "Turso is not configured. Set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN for production.",
   );
 }
 
 const dsn = url ?? "file:./sqlite.db";
 
+if (isProduction && dsn.startsWith("file:")) {
+  throw new Error("Local SQLite files are not supported in production.");
+}
+
 const client = dsn.startsWith("file:")
   ? createFileClient({ url: dsn })
-  : createWebClient({ url: dsn, authToken: process.env.TURSO_AUTH_TOKEN });
+  : createWebClient({ url: dsn, authToken: tursoAuthToken });
 
 export const db = drizzle(client);

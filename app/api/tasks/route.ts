@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getSessionUser } from "@/lib/chat-data";
+import { isPublicPreviewEnabled } from "@/lib/public-preview";
 import type {
   CreateTaskInput,
   CreateTaskResponse,
@@ -16,6 +17,9 @@ import { getSessionWorkspace, previewWorkspaceId } from "@/lib/workspace-data";
 
 export async function GET() {
   const self = await getSessionUser();
+  if (!self && !isPublicPreviewEnabled()) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const context = await getSessionWorkspace();
   const workspaceId = context?.workspaceId ?? (await previewWorkspaceId());
   const [tasks, projects, users] = await Promise.all([

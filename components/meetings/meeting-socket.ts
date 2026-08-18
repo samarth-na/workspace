@@ -1,12 +1,10 @@
+import { realtimeUrl } from "@/lib/client-config";
 import type {
   MeetingIceCandidate,
   MeetingPeer,
   MeetingPeerState,
   MeetingSignalDescription,
 } from "@/lib/meeting-types";
-
-const REALTIME_URL =
-  process.env.NEXT_PUBLIC_REALTIME_URL ?? "ws://localhost:8787";
 
 type MeetingClientEvents = {
   "meeting:join-room": {
@@ -125,7 +123,7 @@ class RealtimeMeetingSocket implements MeetingSocket {
     }
     if (this.manuallyClosed) return;
 
-    const url = `${REALTIME_URL}?room=${encodeURIComponent(`meeting:${this.meetingId}`)}&token=${encodeURIComponent(token)}`;
+    const url = `${realtimeUrl}?room=${encodeURIComponent(`meeting:${this.meetingId}`)}&token=${encodeURIComponent(token)}`;
     const ws = new WebSocket(url);
     this.ws = ws;
     ws.onopen = () => {

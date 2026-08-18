@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import {
   Bulletlist,
@@ -99,9 +100,11 @@ export function DesktopSidebar({
           onClick={() => navigate("/settings")}
         >
           {workspaceLogo ? (
-            <img
+            <Image
               src={workspaceLogo}
               alt=""
+              width={32}
+              height={32}
               className="size-8 shrink-0 rounded-[9px] object-cover"
             />
           ) : (

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   Calendar,
@@ -291,9 +292,11 @@ export function WorkspaceSettings({
           </div>
           <div className="mt-5 flex items-center gap-3">
             {logo ? (
-              <img
+              <Image
                 src={logo}
                 alt="Workspace logo"
+                width={40}
+                height={40}
                 className="size-10 shrink-0 rounded-[10px] border border-[#e3e5ea] object-cover"
               />
             ) : (

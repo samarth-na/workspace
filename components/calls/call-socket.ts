@@ -4,9 +4,7 @@ import type {
   CallPeerState,
   CallSignalDescription,
 } from "@/lib/call-types";
-
-const REALTIME_URL =
-  process.env.NEXT_PUBLIC_REALTIME_URL ?? "ws://localhost:8787";
+import { realtimeUrl } from "@/lib/client-config";
 
 type CallClientEvents = {
   "meeting:join-room": {
@@ -127,7 +125,7 @@ class RealtimeCallSocket implements CallSocket {
     }
     if (this.manuallyClosed) return;
 
-    const url = `${REALTIME_URL}?room=${encodeURIComponent(`call:${this.callId}`)}&token=${encodeURIComponent(token)}`;
+    const url = `${realtimeUrl}?room=${encodeURIComponent(`call:${this.callId}`)}&token=${encodeURIComponent(token)}`;
     const ws = new WebSocket(url);
     this.ws = ws;
     ws.onopen = () => {

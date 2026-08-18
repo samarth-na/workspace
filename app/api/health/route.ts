@@ -8,12 +8,15 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     await db.run(sql`select 1`);
-    return NextResponse.json({ status: "ok", database: "ok" });
+    return NextResponse.json(
+      { status: "ok", database: "ok" },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (error) {
     console.error("[health] database check failed:", error);
     return NextResponse.json(
       { status: "degraded", database: "error" },
-      { status: 503 },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

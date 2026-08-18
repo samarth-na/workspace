@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
+import { isPublicPreviewEnabled } from "@/lib/public-preview";
 import { previewWorkspaceId, workspaceForUser } from "@/lib/workspace-data";
 
 const TOKEN_TTL_SECONDS = 60;
@@ -46,6 +47,9 @@ export async function GET() {
   let workspaceId: string | null = null;
 
   const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user && !isPublicPreviewEnabled()) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   if (session?.user) {
     sub = session.user.id;
     name = session.user.name ?? "Guest";

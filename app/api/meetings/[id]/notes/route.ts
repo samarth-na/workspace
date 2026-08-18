@@ -9,6 +9,7 @@ import type {
   MeetingNoteInput,
   MeetingNotesResponse,
 } from "@/lib/meeting-types";
+import { isPublicPreviewEnabled } from "@/lib/public-preview";
 import { getSessionWorkspace, previewWorkspaceId } from "@/lib/workspace-data";
 
 async function findWorkspaceMeeting(meetingId: string) {
@@ -32,6 +33,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+  const self = await getSessionUser();
+  if (!self && !isPublicPreviewEnabled()) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const row = await findWorkspaceMeeting(id);
   if (!row) {
     return NextResponse.json({ error: "Meeting not found" }, { status: 404 });
