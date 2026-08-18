@@ -91,9 +91,25 @@
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
   .commit { font-family: "SF Mono", Consolas, monospace; font-size: 12.5px; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; }
-  .toc { font-size: 14px; columns: 2; }
+  .toc {
+    font-size: 14px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--code-bg);
+    padding: 20px 24px;
+    margin: 32px 0;
+  }
+  .toc h2 {
+    margin: 0 0 14px;
+    padding: 0;
+    border-bottom: 0;
+    font-size: 18px;
+  }
+  .toc ol { columns: 2; column-gap: 36px; margin: 0; padding-left: 22px; }
+  .toc li { margin: 5px 0; break-inside: avoid; }
   .toc a { color: var(--accent); text-decoration: none; }
-  .toc li { margin: 3px 0; }
+  .toc a:hover { text-decoration: underline; }
+  @media (max-width: 560px) { .toc ol { columns: 1; } }
   footer { margin: 64px 0 40px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 16px; }
 </style>
 </head>
