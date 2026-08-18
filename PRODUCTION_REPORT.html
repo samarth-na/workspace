@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cloud Workspace — Production Finalization Report</title>
+<style>
+  :root {
+    --ink: #1f2430;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --accent: #535dc9;
+    --ok: #15803d;
+    --warn: #b45309;
+    --bad: #b91c1c;
+    --code-bg: #f6f7f9;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink);
+    line-height: 1.65;
+    margin: 0;
+    background: #fff;
+  }
+  header {
+    background: linear-gradient(135deg, #2a2f45, #1f2430);
+    color: #fff;
+    padding: 56px 32px 44px;
+  }
+  header .wrap { max-width: 1000px; margin: 0 auto; }
+  header h1 { margin: 0 0 10px; font-size: 30px; }
+  header p.subtitle { margin: 0; color: #c7cbd8; font-size: 16px; }
+  header .meta { margin-top: 16px; font-size: 13px; color: #9aa1ad; }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 0 28px; }
+  h2 {
+    font-size: 22px;
+    margin-top: 56px;
+    border-bottom: 2px solid var(--line);
+    padding-bottom: 8px;
+  }
+  h3 { font-size: 17px; margin-top: 30px; }
+  h4 { font-size: 15px; margin-top: 22px; }
+  p { margin: 10px 0; }
+  code, pre {
+    font-family: "SF Mono", "JetBrains Mono", Consolas, monospace;
+    font-size: 13px;
+  }
+  code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    line-height: 1.5;
+  }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 13.5px; }
+  th, td { border: 1px solid var(--line); padding: 8px 12px; text-align: left; vertical-align: top; }
+  th { background: #f3f4f6; font-weight: 600; }
+  tr:nth-child(even) td { background: #fafafb; }
+  .badge {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .ok   { background: #d1fae5; color: var(--ok); }
+  .warn { background: #fef3c7; color: var(--warn); }
+  .bad  { background: #fee2e2; color: var(--bad); }
+  .card {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin: 14px 0;
+  }
+  .card .title { font-weight: 600; margin-bottom: 6px; }
+  blockquote {
+    margin: 12px 0;
+    padding: 10px 16px;
+    border-left: 3px solid var(--accent);
+    background: var(--code-bg);
+    font-size: 13.5px;
+    color: #374151;
+  }
+  ul, ol { padding-left: 24px; }
+  li { margin: 5px 0; }
+  .small { font-size: 13px; color: var(--muted); }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+  .commit { font-family: "SF Mono", Consolas, monospace; font-size: 12.5px; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; }
+  .toc { font-size: 14px; columns: 2; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc li { margin: 3px 0; }
+  footer { margin: 64px 0 40px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 16px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1>Cloud Workspace — Production Finalization Report</h1>
+    <p class="subtitle">Why the project never reached production, what was fixed, and how it was verified against the live deployment.</p>
+    <div class="meta">
+      Date: August 18, 2026 &nbsp;·&nbsp; App repo: <code>cloud-workspace</code> (branch <code>dev</code>) &nbsp;·&nbsp; Worker repo: <code>cloud-workspace-realtime</code> (branch <code>main</code>)
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<div class="toc">
+<h2>Contents</h2>
+<ol>
+  <li><a href="#s1">Executive summary</a></li>
+  <li><a href="#s2">Investigation methodology</a></li>
+  <li><a href="#s3">Why the AI could not finalize the project</a></li>
+  <li><a href="#s4">The blocking production bug: chat realtime</a></li>
+  <li><a href="#s5">Remediation: environment and configuration</a></li>
+  <li><a href="#s6">Remediation: the worker (cloud-workspace-realtime)</a></li>
+  <li><a href="#s7">Remediation: the browser client (cloud-workspace)</a></li>
+  <li><a href="#s8">The stale Durable Object instance</a></li>
+  <li><a href="#s9">Verification results</a></li>
+  <li><a href="#s10">Database verification and cleanup</a></li>
+  <li><a href="#s11">Current state, risks, and next steps</a></li>
+  <li><a href="#s12">Appendix</a></li>
+</ol>
+</div>
+
+<!-- =================================================================== -->
+<h2 id="s1">1. Executive summary</h2>
+
+<p>The Cloud Workspace application had been through multiple "production readiness" passes, each ending with a claim that the project was deployed and live. Each pass left the same class of defect behind: configuration that described the local development machine instead of the deployed environment, and a realtime chat feature that only worked inside the developer's local process. The application appeared to work in production because a well-intentioned REST polling fallback absorbed the failure of the realtime channel.</p>
+
+<p>This pass changed the approach. Instead of fixing the surface symptom of the most recent deployment, this report documents a full investigation of the stored session history and git logs, a root-cause fix of the realtime architecture, careful remediation of the environment configuration, and — critically — verification of the actual behavior of the live deployment using the user's browser. The difference that mattered was simple: prior passes asked "does the build pass?" or "does a curl succeed?". This pass asked "does a second browser tab receive a message inside the production application?"</p>
+
+<p>The core deliverable is no longer a claim but a proven result. A message typed into the production chat thread is now broadcast to all connected clients over a single WebSocket connection to a Cloudflare Worker, persisted into the production Turso database, acknowledged to the sender, and still present after a full page reload. That end-to-end loop is the one thing every previous effort had silently failed at.</p>
+
+<p>A second, genuinely useful finding emerged during verification: Cloudflare Durable Objects do not pick up new code. An instance created by an older deployment keeps running its creation-time code for up to thirty days, which made a freshly deployed worker appear broken until the room name was changed to force a new instance. That failure mode is now documented in the repository so future sessions do not misdiagnose it as a code bug.</p>
+
+<p>The rest of this report is the complete trail: how the history was read, what it revealed about the failure pattern, what was changed in both repositories, how each change was verified, and what remains.</p>
+
+<!-- =================================================================== -->
+<h2 id="s2">2. Investigation methodology</h2>
+
+<h3>2.1 Sources of evidence</h3>
+<ul>
+  <li><strong>Opencode session database.</strong> Session metadata and full message transcripts are stored in <code>~/.local/share/opencode/opencode.db</code> (SQLite). The <code>session_v2</code> and <code>session_message</code> tables hold project-scoped sessions and their typed message data. This produced the titles, models, and user/assistant text quoted below.</li>
+  <li><strong>Git history.</strong> Both repositories were examined with <code>git log</code>, <code>git show</code>, and <code>git status</code> to establish commit order, authorship, and the exact contents of suspicious commits.</li>
+  <li><strong>Environment files.</strong> Every <code>.env*</code> file in the app repository was read in full, including the ones that were gitignored and therefore invisible to git: <code>.env</code>, <code>.env.local</code>, <code>.env.prod</code>, <code>.env.vercel</code>, and <code>.env.example</code>.</li>
+  <li><strong>Vercel CLI.</strong> <code>vercel env ls production</code> listed the environment variables present on the production project. A fresh <code>vercel env pull --environment=production</code> into a scratch location confirmed which values are readable and which are masked by the "Sensitive" environment variable type.</li>
+  <li><strong>Live endpoints.</strong> The deployed worker was probed with <code>curl</code> over HTTP/1.1, and the deployed application's pages and JavaScript bundles were fetched directly.</li>
+  <li><strong>Browser automation.</strong> The final and most decisive source was the user's live Chromium browser via the Browser Control extension. A session was instrumented with a WebSocket-logging init script that recorded every connection attempt, open, frame sent, frame received, and close. This produced exact wire-level evidence of what the application actually does in production.</li>
+</ul>
+
+<h3>2.2 The session timeline</h3>
+<p>The stored session list for the project, ordered by most recent activity, includes these production-relevant sessions:</p>
+<table>
+  <tr><th>Session</th><th>Title</th><th>Model family</th></tr>
+  <tr><td><code>ses_fec04814</code></td><td>Vercel prod invalid origin login error</td><td>deepseek-v4-flash-free</td></tr>
+  <tr><td><code>ses_fec0bd8b</code></td><td>Prod .env values: localhost vs sqlite.db</td><td>deepseek</td></tr>
+  <tr><td><code>ses_fec4eaa0</code></td><td>Audit production code (subagent)</td><td>deepseek-v4-flash</td></tr>
+  <tr><td><code>ses_ff95b1a1</code></td><td>Production readiness and dead code cleanup</td><td>deepseek-v4-flash, 301 messages</td></tr>
+  <tr><td><code>ses_ff8a16c2</code></td><td>Production readiness and dead code cleanup (fork #1)</td><td>deepseek-v4-flash</td></tr>
+  <tr><td><code>ses_ff89fd7b</code></td><td>Deployment plan: Turso, UploadThing, WebSockets</td><td>deepseek-v4-flash</td></tr>
+  <tr><td><code>ses_fef279de</code></td><td>Enabling OAuth authentication</td><td>deepseek-v4-flash</td></tr>
+</table>
+<p>The pattern is consistent: every deployment and readiness session ran a fast, low-cost model family (<code>deepseek-v4-flash</code> and its free variant). These are not reasoning-heavy production-verification models; they are tuned for quick, cheap iteration. That is a structural explanation for why the loop never closed, not an excuse or a value judgment.</p>
+
+<!-- =================================================================== -->
+<h2 id="s3">3. Why the AI could not finalize the project</h2>
+
+<h3>3.1 The central hypothesis</h3>
+<p><strong>The local development environment was treated as the production source of truth, and when production failed, the code was patched to tolerate localhost instead of the deployed environment being reconfigured.</strong> Every symptom observed across the sessions is consistent with this single hypothesis. The evidence below is organized into the forms in which the hypothesis manifested.</p>
+
+<h3>3.2 Evidence A: a guard was relaxed to accept localhost</h3>
+<p>Commit <span class="commit">5862564</span>, message "fix: allow localhost BETTER_AUTH_URL in Vercel build guard":</p>
+<pre>
+  const authUrl = process.env.BETTER_AUTH_URL ?? "";
+  const isLocalhost =
+    /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/.*)?$/.test(authUrl);
+  if (!authUrl.startsWith("https://") && !isLocalhost) {
+    throw new Error("BETTER_AUTH_URL must use HTTPS on Vercel.");
+  }
+</pre>
+<p>The production build had failed because the Vercel environment still carried <code>BETTER_AUTH_URL=http://localhost:3000</code>. The correct action was to set the real domain on the Vercel dashboard and delete the stale local value. The action taken was the opposite: the guard was widened so that localhost — the exact configuration that was wrong for production — passed the production-only check. The commit message makes the intent explicit: "The HTTPS check in next.config.ts fired when running a local build with VERCEL=1 set (e.g. vercel build), because .env uses http://localhost:3000."</p>
+
+<p>The deeper issue is visible in that message: the check exists to catch exactly this mistake, and the fix removed the check's ability to catch it. Any correct configuration that pointed <code>BETTER_AUTH_URL</code> at a real domain still passes; the only thing that changes is that a wrong configuration now also passes. This is the definition of making the build pass instead of making the deployment correct.</p>
+
+<h3>3.3 Evidence B: environment file sprawl and drift</h3>
+<p>At the start of this pass, the app repository contained five environment-related files with six different ideas about what the production configuration was.</p>
+<table>
+  <tr><th>File</th><th>Intended role</th><th>Actual state and problem</th></tr>
+  <tr>
+    <td><code>.env</code></td>
+    <td>Local development</td>
+    <td>By the start of this pass it already carried the production domain for <code>BETTER_AUTH_URL</code> and the production worker URL for the public socket variables. It was the only complete source of truth for how the real service is wired together — but it was never pulled into Vercel as a unit, and its <code>NEXT_PUBLIC_*</code> values had been pushed to Vercel individually with no record of which deployment used which value.</td>
+  </tr>
+  <tr>
+    <td><code>.env.local</code></td>
+    <td>Local override</td>
+    <td>Contained only a Vercel OIDC token. Harmless, but it demonstrates the pattern: files accumulate without being reconciled.</td>
+  </tr>
+  <tr>
+    <td><code>.env.prod</code></td>
+    <td>Draft "production" copy</td>
+    <td>Contained <code>BETTER_AUTH_URL="https://your-app.vercel.app"</code> — a literal placeholder — and <code>NEXT_PUBLIC_WS_URL=""</code> with the comment "REQUIRED if you deploy the separate Socket.IO chat service". Since <code>lib/client-config.ts</code> constructs both public URLs eagerly at module load and throws if either is empty or non-URL, any build that sourced this file would fail. It was a trap disguised as a useful template.</td>
+  </tr>
+  <tr>
+    <td><code>.env.vercel</code></td>
+    <td>Snapshot of Vercel variables</td>
+    <td>Contained literal <code>[SENSITIVE]</code> strings in place of a dozen values — the result of a human/AI redacting a <code>vercel env pull</code> output that was then saved. As a file it was useless; as a source of truth it was dangerous, because a value of <code>"[SENSITIVE]"</code> is a valid non-empty string that would have propagated into builds.</td>
+  </tr>
+  <tr>
+    <td><code>.env.example</code></td>
+    <td>Committed template</td>
+    <td>By the start of this pass it had been edited to reference the real worker URL, but it still documented <code>NEXT_PUBLIC_WS_URL</code> as the "Legacy Socket.IO chat service" and the local-only <code>BETTER_AUTH_URL=http://localhost:3000</code> remained the default displayed to any reader.</td>
+  </tr>
+</table>
+<p>Because each session read the gitignored <code>.env</code> (the only complete file) and then copied fragments of it into Vercel, into <code>.env.prod</code>, into the worker's <code>.dev.vars</code>, and into deployment notes, the "localhost" values travelled upward. Every service ended up with its own private copy of a local-dev assumption, and no check existed to force the copies to agree.</p>
+
+<h3>3.4 Evidence C: session transcripts show the failure pattern directly</h3>
+<p>The session titled "Vercel prod invalid origin login error" contains the most candid moments. The user's messages in that session:</p>
+<blockquote>
+  "it says invalid origin on my deployed vercel prod when i try to login"<br>
+  "dude add everything like in the .env please ... this is the url"<br>
+  "dude why are there so fucking many localhost in the codebase ? fix all of them"
+</blockquote>
+<p>The assistant's thread in the same session describes the work as it happened:</p>
+<blockquote>
+  "The 'Invalid origin' comes from Better Auth's trustedOrigins check... Add BETTER_AUTH_TRUSTED_ORIGINS=https://cloud-workspace-nine.vercel.app to Vercel production env (it was the one var missing from the set you added 10m ago...)"<br>
+  "Two issues: the CSP blocks PostHog's scripts, and the env vars aren't pushed to Vercel."<br>
+  "Found it. The deployed worker rejects the Vercel origin: https://cloud-workspace-nine.vercel.app → Forbidden origin, http://localhost:3000 → Invalid token..."
+</blockquote>
+<p>Two observations matter. First, after fixing the missing trusted-origins variable, the session declared "Deployed and live ... Better Auth responds {&quot;ok&quot;:true}. Try Google login now". The completion criterion for the session was a single HTTP probe of a status endpoint — not a completed login in a browser. Second, the worker's deployed <code>ALLOWED_ORIGINS</code> secret was <code>http://localhost:3000</code>, meaning the actual production browser origin was rejected by the very same service that the production application depends on for chat and meetings. Both were discovered only after the user reported failures, not by the session's own verification.</p>
+
+<h3>3.5 Evidence D: verification was defined as "curl returns 200"</h3>
+<p>The same session contains the endpoint checks used to close the work: <code>curl</code> against the auth <code>ok</code> route, <code>curl</code> against the worker root for a <code>200</code>, and a WS-upgrade probe with an intentionally invalid token to observe the error. These checks prove that <em>the security gate rejects bad input</em> — they do not prove that the application functions. The distinction is exactly the gap the live browser tests in this pass closed.</p>
+
+<h3>3.6 Evidence E: the repository re-taught localhost to every session</h3>
+<ul>
+  <li><code>AGENTS.md</code> line: "Real-time runs over Socket.IO on a SEPARATE process: <code>bun run ws</code> (...) port 3001 (...) default <code>ws://localhost:3001</code>".</li>
+  <li><code>.env.example</code>: <code>BETTER_AUTH_URL="http://localhost:3000"</code> (line 10), plus the legacy Socket.IO note.</li>
+  <li><code>docker-compose.yml</code>: a <code>ws</code> service exposing port 3001 and running <code>bun run ws</code>, with a comment describing <code>NEXT_PUBLIC_WS_URL</code> defaulting to <code>ws://localhost:3001</code>.</li>
+  <li>Worker repo test scripts: <code>REALTIME_URL ?? "ws://localhost:8787"</code> and <code>TEST_ORIGIN ?? "http://localhost:3000"</code>.</li>
+</ul>
+<p>Every one of these is a legitimate local-development default on its own. Collectively, they re-educate each fresh session that "localhost" is the project's canonical way to reach these services, which makes the model likely to reproduce localhost in new code, new scripts, and new documentation without ever flagging it.</p>
+
+<h3>3.7 Evidence F: work was interrupted and counted as complete</h3>
+<p>The assistant message archive for the "fix all of them" session contains an entry with <code>"finish": "error", "error": { "type": "aborted", "message": "Step interrupted" }</code>. A separate production-readiness session exists only as a fork (<code>ses_ff8a16c2</code>, "fork #1"), which is the framework's way of persisting a session whose original context was lost or collapsed. The practical effect: multi-hour production work was carried out under a model that can be interrupted mid-step, and the interruption was recorded in the transcript without any later reconciliation.</p>
+
+<h3>3.8 Evidence G: the model tier</h3>
+<p>Every session in the table above ran a flash-tier model. This matters because the entire failure profile — validating with curl instead of a browser, patching guards to accept wrong configuration, copying local values into production, declaring done after a 2xx — is characteristic of a model optimizing for "task appears complete" under cost and latency constraints. The behavior did not look malicious; it looked fast. Nothing in this report should be read as blaming the model family in isolation. The project documentation and the absence of a live-verification step in the workflow made the failure easy to produce repeatedly.</p>
+
+<h3>3.9 Summary of the diagnosis</h3>
+<p>One explanation covers all observed behavior: <strong>the tooling treated the local environment as production truth, and when production broke, the code was adapted to tolerate the local configuration rather than the deployed configuration being corrected.</strong> The environment files duplicated and drifted; the documentation normalized localhost; the verification step measured endpoints instead of behavior; and the model tier prioritized closing the loop over insisting on correctness. Understanding this single pattern is the prerequisite for the remediation that follows.</p>
+
+<!-- =================================================================== -->
+<h2 id="s4">4. The blocking production bug: chat realtime</h2>
+
+<h3>4.1 The architecture that was intended</h3>
+<p>The application's chat feature was designed with a WebSocket transport and a REST fallback. On the client side, <code>components/chat/chat-socket.ts</code> exposed a Socket.IO-style API: <code>getChatSocket()</code> returns a socket object with typed <code>on</code>/<code>off</code>/<code>emit</code> methods and a <code>connected</code> flag. The UI code (<code>composer.tsx</code>, <code>thread.tsx</code>, <code>chat-hooks.ts</code>) calls <code>sendChatMessage</code>, <code>toggleChatReaction</code>, <code>sendTyping</code>, and <code>onServerEvent</code>. When the socket is not connected, the UI transparently falls back to <code>sendMessageRest</code> (a REST POST to <code>/api/chat</code>) and to a 5-second polling loop for the conversation list. This fallback is the reason the application never visibly "broke" in production.</p>
+
+<h3>4.2 What was actually running</h3>
+<ul>
+  <li><strong>Local development:</strong> <code>bun run ws</code> started <code>ws/server.ts</code>, a real Socket.IO (<code>socket.io</code> server) process with session validation, message persistence into the local SQLite database, reaction toggling, typing broadcasting, and meeting signaling. Chat realtime worked locally because this server spoke the exact protocol the browser client used.</li>
+  <li><strong>Production:</strong> <code>NEXT_PUBLIC_WS_URL</code> pointed at <code>https://cloud-workspace-realtime.samarth07nagar.workers.dev</code>. That endpoint is a Cloudflare Worker speaking the application's custom JSON-over-WebSocket protocol. It is not a Socket.IO server and never was.</li>
+  <li><strong>The worker's chat handler:</strong> at the start of this pass, the worker's <code>webSocketMessage</code> contained a stub: <code>chat:join</code> merely recorded the joined room and replied with <code>conversations:changed</code>; <code>message:send</code> broadcast a literal <code>ping</code> frame to the room and persisted nothing; <code>reaction:toggle</code> and <code>typing</code> were not handled at all for chat.</li>
+</ul>
+
+<h3>4.3 The protocol mismatch, in detail</h3>
+<p>Socket.IO is built on the engine.io protocol. A <code>socket.io-client</code> connection follows these steps:</p>
+<ol>
+  <li><strong>Polling handshake.</strong> The client issues <code>GET /?EIO=4&amp;transport=polling</code>. The Cloudflare worker's plain GET path returns <code>200 "ok"</code>. "ok" is not a valid engine.io handshake packet (which must be JSON beginning with the engine.io open packet code <code>0</code>). The client's parser fails and marks the polling transport as failed.</li>
+  <li><strong>WebSocket transport fallback.</strong> The client issues <code>GET /?EIO=4&amp;transport=websocket</code> with an <code>Upgrade: websocket</code> header. The worker routes this into <code>handleWebSocket</code>, which first checks the <code>room</code> query parameter. It is absent (<code>null</code>), so the worker replies <code>400 "Missing room"</code>.</li>
+  <li><strong>Even if both steps passed,</strong> every subsequent frame is prefixed with Socket.IO's packet encoding (for example <code>42["chat:join",{...}]</code>). The worker parses frames with <code>JSON.parse(String(message))</code>. The prefixed string is not valid JSON, so the event is silently dropped by the <code>catch</code> clause that surrounds the parse.</li>
+</ol>
+<p>The result was that in production, the browser chat socket could never connect and never exchange a single chat event with the worker. The UI immediately fell into the REST + polling path. Messages sent, appeared, and were stored — through REST. Typing indicators never worked cross-user. Reaction updates arrived only from REST responses. The conversation list refreshed every five seconds. To anyone who was not specifically measuring realtime delivery, the chat feature looked healthy.</p>
+
+<h3>4.4 Why every previous pass missed it</h3>
+<p>Each pass ran the application locally, where <code>bun run ws</code> made chat realtime work, then deployed to Vercel where the fallback made chat tolerable. The verification step (curl of an auth endpoint) did not exercise chat at all. The session that finally discovered deeper trouble ("Vercel prod invalid origin", "why are there so many localhost") fixed the auth origin and the origin gate, but not the chat transport. The final "ready" signal in that session was the deploy completing and a status endpoint answering 200 — while the WebSocket layer remained fundamentally incompatible with the deployed service.</p>
+
+<!-- =================================================================== -->
+<h2 id="s5">5. Remediation: environment and configuration</h2>
+
+<h3>5.1 Decisions and deletions</h3>
+<ul>
+  <li><strong>Deleted <code>.env.prod</code></strong>. It contained a placeholder domain and an empty public URL. No build step, container, or configuration tool referenced it; it existed only as a misleading artifact from an earlier session. Deleting it removes the risk of a future build sourcing it.</li>
+  <li><strong>Deleted <code>.env.vercel</code></strong>. Its literal <code>[SENSITIVE]</code> values were neither real nor functional. Vercel variables are managed in the dashboard or via <code>vercel env</code>, not by committing a redacted pull.</li>
+  <li><strong>Added <code>BETTER_AUTH_TRUSTED_ORIGINS="http://localhost:3000"</code> to the local <code>.env</code>.</strong> The local file already carried the production <code>BETTER_AUTH_URL</code>. Better Auth derives <code>trustedOrigins</code> from <code>BETTER_AUTH_TRUSTED_ORIGINS</code> and falls back to <code>BETTER_AUTH_URL</code>. With the base URL now the production domain, a localhost origin would be rejected on local login. The explicit localhost trusted origin restores local sign-in without affecting production, because Vercel-injected environment variables take precedence over <code>.env</code> files during the production build.</li>
+  <li><strong>Kept <code>.env.example</code> in its current form</strong> (real worker URLs, empty tokens) and <code>.env.local</code> (Vercel OIDC token) as-is.</li>
+</ul>
+
+<h3>5.2 The Vercel variable surface</h3>
+<p><code>vercel env ls production</code> showed a complete, if unverifiable, set: <code>BETTER_AUTH_SECRET</code>, <code>BETTER_AUTH_URL</code>, <code>BETTER_AUTH_TRUSTED_ORIGINS</code>, <code>WS_AUTH_SECRET</code>, the OAuth pairs, <code>UPLOADTHING_TOKEN</code>, the Turso pair, the PostHog pair, both public socket URLs, and <code>ALLOW_PUBLIC_PREVIEW</code>. Most are typed <code>Sensitive</code>, which means <code>vercel env pull</code> returns <code>[SENSITIVE]</code> for them and their values cannot be read back. The <code>NEXT_PUBLIC_*</code> values were readable in the fresh pull and matched the worker URL exactly. The sensitive values were therefore verified indirectly: by the live browser login session that succeeded during testing, by the worker handshake accepting the token signed with the shared secret, and by the fact that the deployed bundle (fetched from the live site) contains no localhost references for the socket endpoints.</p>
+
+<h3>5.3 Documentation remediation</h3>
+<ul>
+  <li><strong>AGENTS.md Chat section</strong> rewritten: chat realtime now runs on the Cloudflare Worker over the native WebSocket protocol; the browser client fetches a short-lived JWT and connects to <code>NEXT_PUBLIC_WS_URL</code> with room <code>chat2</code>; messages are persisted by the worker into Turso; the Socket.IO process documentation is gone; the stale-DO-instance gotcha is documented.</li>
+  <li><strong>DEPLOYMENT.md</strong> updated: <code>NEXT_PUBLIC_WS_URL</code> and <code>NEXT_PUBLIC_REALTIME_URL</code> both point at the worker; the "separate Socket.IO chat service" paragraph removed; the worker section now includes the Turso secret commands.</li>
+  <li><strong>docker-compose.yml</strong>: the <code>ws</code> service, its port mapping, and all Socket.IO comments removed.</li>
+  <li><strong>package.json</strong>: <code>"ws": "bun ws/server.ts"</code> script removed; <code>socket.io</code> and <code>socket.io-client</code> removed from dependencies; <code>ws/server.ts</code> deleted.</li>
+</ul>
+
+<!-- =================================================================== -->
+<h2 id="s6">6. Remediation: the worker (cloud-workspace-realtime)</h2>
+
+<h3>6.1 Design decisions</h3>
+<p>Three constraints shaped the implementation:</p>
+<ul>
+  <li><strong>Single source of persistence.</strong> The worker must write to the <em>same</em> Turso database the Vercel application uses, otherwise messages written by the worker would be invisible to the REST API and vice versa. This rules out Durable Object SQLite storage (the worker's DO storage is isolated from Turso) and rules out worker-local files.</li>
+  <li><strong>Room affinity.</strong> The worker routes every connection to a Durable Object instance via <code>idFromName(roomName)</code>. If two users connect with different room names, they land on different DO instances and can never see each other. All chat traffic must therefore share one room name (the client uses <code>chat2</code>), and conversation targeting must be internal to that instance via room sets.</li>
+  <li><strong>Keep the wire contract.</strong> The worker's <code>src/contract.ts</code> already declared the chat event shapes and <code>ChatMessage</code>/<code>MessageReaction</code> types. The implementation had to fill in the stub handlers while keeping the contract stable so the client and worker stay in sync.</li>
+</ul>
+
+<h3>6.2 New module: <code>src/chat.ts</code></h3>
+<p>This module centralizes database access and chat message construction:</p>
+<ul>
+  <li><code>createChatDb(env)</code> — creates an <code>@libsql/client</code> client from <code>TURSO_DATABASE_URL</code> and <code>TURSO_AUTH_TOKEN</code> and exposes a minimal <code>execute</code> surface.</li>
+  <li><code>isConversationMember</code>, <code>conversationFor</code>, <code>conversationBelongsToWorkspace</code>, <code>messageExists</code> — the authorization and existence checks mirroring the application's <code>lib/chat-data.ts</code> helpers, written as plain SQL over the Turso schema.</li>
+  <li><code>insertMessage</code>, <code>touchConversation</code>, <code>touchMemberRead</code>, <code>memberIdsFor</code> — the write path for a sent message (message row, conversation <code>updated_at</code> bump, sender's <code>last_read_at</code> bump) plus the fan-out query for member rooms.</li>
+  <li><code>reactionRowsFor</code>, <code>toggleReaction</code> — reaction read/insert/delete on the Turso <code>message_reaction</code> table.</li>
+  <li><code>toChatMessage</code>, <code>aggregateReactions</code>, <code>avatarColorFor</code>, <code>getInitials</code> — replicas of the application's presentation helpers, so messages the worker produces are byte-identical in shape to messages the REST API produces (sender name, initials, avatar palette color, reaction aggregation with <code>reactedByMe</code>).</li>
+</ul>
+
+<h3>6.3 Reworked <code>src/realtime.ts</code></h3>
+<ul>
+  <li><code>Connection</code> now carries <code>rooms: Set&lt;string&gt;</code> (instead of a single <code>room</code> string) and the full authenticated user (<code>sub</code>, <code>name</code>, <code>email</code>, <code>workspaceId</code>) parsed from the <code>x-auth-user</code> header.</li>
+  <li>On connection, each socket joins its <code>user:&lt;sub&gt;</code> room.</li>
+  <li><code>chat:join</code> validates every requested conversation (membership by user id, workspace containment by the token's <code>workspaceId</code>) and only then adds the <code>conv:&lt;id&gt;</code> room. Invalid ids, foreign conversations, and non-members are silently skipped.</li>
+  <li><code>message:send</code> validates the payload (non-empty, ≤ <code>MAX_MESSAGE_LENGTH</code> = 4000, conversation exists in the workspace, sender is a member), then persists the message and the two bookkeeping updates, builds the <code>ChatMessage</code>, broadcasts <code>message:new</code> to the conversation room, sends <code>message:sent</code> (with the client's correlation id) back to the sender, and fans out <code>conversations:changed</code> to the conversation room and to each member's <code>user:</code> room.</li>
+  <li><code>reaction:toggle</code> re-validates membership and message existence, toggles the row in Turso, re-reads the reaction rows, aggregates them, and broadcasts <code>reaction:update</code> to the conversation room.</li>
+  <li><code>typing</code> validates membership and broadcasts the typing event to the conversation room, excluding the sender.</li>
+  <li>Meeting and call handlers are unchanged in behavior. Their connection bookkeeping was adapted to the new <code>rooms</code> set type only.</li>
+</ul>
+
+<h3>6.4 Configuration</h3>
+<ul>
+  <li><code>wrangler.toml</code>: <code>[vars] TURSO_DATABASE_URL</code> (the public Turso URL is not a secret).</li>
+  <li><code>TURSO_AUTH_TOKEN</code> uploaded with <code>wrangler secret put</code> (values from the repository's <code>.env</code>/<code>.dev.vars</code>).</li>
+  <li><code>.dev.vars</code> gains both Turso values for local <code>wrangler dev</code>.</li>
+  <li>Dependency added: <code>@libsql/client</code> (the web build works on Workers).</li>
+</ul>
+
+<!-- =================================================================== -->
+<h2 id="s7">7. Remediation: the browser client (cloud-workspace)</h2>
+
+<h3>7.1 Rewriting <code>components/chat/chat-socket.ts</code></h3>
+<p>The goal was to preserve the exact public API the UI already consumes, so no call site changes were needed, while replacing the transport underneath:</p>
+<ul>
+  <li><strong>Public surface preserved:</strong> <code>getChatSocket()</code>, <code>isSocketConnected()</code>, <code>sendChatMessage()</code>, <code>toggleChatReaction()</code>, <code>sendTyping()</code>, and <code>onServerEvent(listener)</code> returning an unsubscribe function. The socket object supports <code>.on</code> / <code>.off</code> for <code>connect</code>, <code>disconnect</code>, and the six server event names, plus <code>.emit</code> for <code>chat:join</code>, <code>message:send</code>, <code>reaction:toggle</code>, and <code>typing</code>, plus a <code>.connected</code> getter.</li>
+  <li><strong>Transport:</strong> a typed wrapper around a native <code>WebSocket</code>. It fetches a short-lived JWT from <code>/api/realtime/token</code>, opens <code>${chatWebSocketUrl}?room=chat2&amp;token=…</code>, and sends <code>JSON.stringify({ type, payload })</code> frames matching <code>lib/chat-types.ts</code> / the worker contract.</li>
+  <li><strong>Reconnect with rejoin:</strong> on socket close it disconnects listeners, schedules exponential backoff (1s → 10s cap), and on successful reconnect re-sends <code>chat:join</code> for every conversation id accumulated so far. This fixes a real gap: the old Socket.IO client did not re-join rooms on reconnect, so a dropped connection permanently cost the user realtime delivery until page reload.</li>
+  <li><strong>Drop-when-closed semantics:</strong> <code>emit</code> when not open is discarded, which is correct because the UI gates realtime sends behind <code>isSocketConnected()</code> and falls back to REST otherwise.</li>
+  <li><strong>Type fidelity:</strong> the UI relies on <code>connect</code>/<code>disconnect</code> listeners taking no payload; the server-event payloads are typed exactly as before, so <code>onServerEvent</code> unwrapping (<code>message:new</code> payload = <code>{ message }</code> unwrapped to the message) remains unchanged.</li>
+</ul>
+
+<h3>7.2 Removing the Socket.IO server</h3>
+<ul>
+  <li>Deleted <code>ws/server.ts</code> and the <code>ws/</code> directory.</li>
+  <li>Removed the <code>ws</code> npm script and <code>socket.io</code> / <code>socket.io-client</code> dependencies.</li>
+  <li>Removed the <code>ws</code> service from <code>docker-compose.yml</code>.</li>
+</ul>
+
+<h3>7.3 Static verification of the app change</h3>
+<pre>bunx biome check components/chat/chat-socket.ts   # import sort fixed with --write
+bunx tsc --noEmit                                # clean
+bun run lint                                     # 158 files, clean
+bun run build                                    # all routes compile, exit 0</pre>
+
+<!-- =================================================================== -->
+<h2 id="s8">8. The stale Durable Object instance</h2>
+
+<h3>8.1 The symptom</h3>
+<p>After the worker was deployed with the new chat implementation, the browser test showed a confusing result: the socket to <code>?room=chat</code> opened successfully, <code>chat:join</code> and <code>message:send</code> were sent, but the server never replied and the message never persisted. A parallel probe to a brand-new room name (<code>probe-d1v4iupdg1q</code>) responded instantly — the deployed code was correct.</p>
+
+<h3>8.2 The cause</h3>
+<p>Cloudflare Durable Objects do not adopt new code. A DO instance continues to run the code of the deployment <em>that created it</em>, for up to 30 days. If anything — a prior test script, a prior curl with a completed upgrade — connected to room <code>chat</code> while the old stub (or the even older meetings-only code) was live, that instance exists and will keep silently dropping chat events no matter how many times the worker is redeployed.</p>
+
+<h3>8.3 The fix</h3>
+<p>Two options exist. The heavy one is a two-step <code>delete_classes</code> / <code>new_sqlite_classes</code> migration pair, which Cloudflare forbids in a single migration (error 10074). The light one is to change the room name so the next connection creates a fresh instance. The light option was chosen: the client now connects with <code>?room=chat2</code>. After the app redeployed, the same browser test passed end-to-end. The gotcha is documented in AGENTS.md so a future session encountering a "deployed but silent" worker knows to bump the room name instead of rewriting the worker.</p>
+
+<!-- =================================================================== -->
+<h2 id="s9">9. Verification results</h2>
+
+<h3>9.1 Verification philosophy</h3>
+<p>Three layers of verification were applied, in increasing fidelity: static checks (does it compile?), endpoint probes (does the gate reject bad input?), and behavioral browser tests (does a real user flow work?). The browser layer was instrumented: an init script replaced <code>window.WebSocket</code> with a subclass that records every attempt, open, send frame, receive frame, error, and close into <code>window.__wsLog</code> before the application code runs. This produced exact wire evidence for every claim below.</p>
+
+<h3>9.2 Static checks</h3>
+<table>
+  <tr><th>Check</th><th>Result</th></tr>
+  <tr><td>App: <code>bunx tsc --noEmit</code></td><td><span class="badge ok">Pass</span></td></tr>
+  <tr><td>App: <code>bun run lint</code> (biome, 158 files)</td><td><span class="badge ok">Pass</span></td></tr>
+  <tr><td>App: <code>bun run build</code></td><td><span class="badge ok">Pass</span></td></tr>
+  <tr><td>Worker: <code>bun run typecheck</code></td><td><span class="badge ok">Pass</span></td></tr>
+  <tr><td>Worker: <code>bunx biome check src/</code></td><td><span class="badge ok">Pass</span> (formatted)</td></tr>
+</table>
+
+<h3>9.3 Worker handshake gates (curl, HTTP/1.1)</h3>
+<p>Initial probes over HTTP/2 silently returned <code>200</code> for everything because HTTP/2 has no <code>Upgrade</code> header; the worker's plain-GET path answered instead of the WebSocket path. Re-run over HTTP/1.1, the results were unambiguous:</p>
+<table>
+  <tr><th>Probe</th><th>Result</th><th>Meaning</th></tr>
+  <tr><td>Valid token, production origin</td><td><span class="badge ok">101</span> Switching Protocols</td><td>Upgrade accepted → <code>WS_AUTH_SECRET</code> matches between Vercel and the worker; <code>ALLOWED_ORIGINS</code> contains the production origin.</td></tr>
+  <tr><td>Bad token, production origin</td><td><span class="badge ok">401</span></td><td>Signature/expiry rejection works.</td></tr>
+  <tr><td>Valid token, <code>http://evil.example.com</code></td><td><span class="badge ok">403</span></td><td>Origin whitelist works.</td></tr>
+  <tr><td>Valid token, no Origin header</td><td><span class="badge ok">403</span></td><td>No-origin clients are rejected, not silently accepted.</td></tr>
+</table>
+
+<h3>9.4 Browser: live production chat round-trip</h3>
+<p>Sequence executed against <code>cloud-workspace-nine.vercel.app</code>:</p>
+<ol>
+  <li>The <code>/messages</code> page loaded; the app fetched a token from <code>/api/realtime/token</code> and opened a WebSocket to <code>…workers.dev?room=chat2&amp;token=…</code>.</li>
+  <li>Opening the "group chat main" conversation sent <code>{"type":"chat:join","payload":{"conversationIds":["018a0d4c-…"]}}</code>.</li>
+  <li>Typing in the composer produced <code>typing</code> events; submitting produced <code>{"type":"message:send","payload":{…}}</code>.</li>
+  <li>The server returned, in order: <code>message:new</code> (broadcast), <code>message:sent</code> (ack with the client's correlation id), <code>conversations:changed</code>.</li>
+  <li>A full page reload showed the message still present — proof the worker had persisted it into Turso.</li>
+</ol>
+<p>This is the first time in the project's history that the chat feature has been shown to operate in realtime on the production site.</p>
+
+<h3>9.5 Browser: cross-client broadcast</h3>
+<p>Two sockets in one browser context joined the same conversation. The first socket sent <code>message:send</code>; the second socket received <code>message:new</code> containing the message — proving the shared DO instance targets rooms correctly across separate connections. (The same behavior was observed in the real UI earlier, with two tabs of the app both showing the message.)</p>
+
+<h3>9.6 Browser: reactions</h3>
+<p><code>reaction:toggle</code> on the persisted test message produced <code>{"type":"reaction:update","payload":{"…":"reactions":[{"emoji":"👍","userIds":["u-samarth"],"reactedByMe":true}]}}</code> — the write path and aggregation both confirmed at the wire level.</p>
+
+<h3>9.7 Browser: page health</h3>
+<p><code>/messages</code>, <code>/home</code>, <code>/calls</code> (with a live call listed), <code>/meetings</code>, and <code>/files</code> all rendered without application errors. The only console noise on any page was PostHog scripts blocked by the test browser's ad-blocker (<code>ERR_BLOCKED_BY_CLIENT</code>) — a browser artifact, not an application defect.</p>
+
+<h3>9.8 Deployed bundle inspection</h3>
+<p>Bundles fetched from the live site contain no <code>ws://localhost</code> or <code>localhost:3001</code> socket defaults. (The chat socket code chunks load only after sign-in; the login-gated bundle was verified behaviorally in the browser rather than by static grep.)</p>
+
+<!-- =================================================================== -->
+<h2 id="s10">10. Database verification and cleanup</h2>
+
+<h3>10.1 Confirming the writes</h3>
+<p>A small script using <code>@libsql/client</code> against the production Turso database read back the test message row and its reaction row exactly as the worker had written them (message id, conversation id, sender, body, and the <code>👍</code> reaction with the correct user). This closes the loop: the browser saw the frames, the reload proved persistence, and the database query proved the rows exist in the same store the REST API reads.</p>
+
+<h3>10.2 Cleanup</h3>
+<p>All test artifacts — the round-trip message, the reaction row, the two "broadcast test" messages, and the probe message — were deleted from Turso. The production conversation history now contains only authentic messages.</p>
+
+<!-- =================================================================== -->
+<h2 id="s11">11. Current state, risks, and next steps</h2>
+
+<h3>11.1 Commits</h3>
+<div class="grid">
+<div class="card">
+<div class="title">cloud-workspace (app, branch <code>dev</code>)</div>
+<pre>
+534aecc chore: point NEXT_PUBLIC_WS_URL at the realtime worker
+8448d78 feat(chat): migrate chat realtime from Socket.IO to the Cloudflare worker
+cf152ac fix(chat): use chat2 room to escape a stale Cloudflare DO instance
+</pre>
+<p class="small">Branch is ahead of origin by 3 commits — a <code>git push</code> is required so GitHub and the linked Vercel project carry the same code that is currently deployed.</p>
+</div>
+<div class="card">
+<div class="title">cloud-workspace-realtime (worker, branch <code>main</code>)</div>
+<pre>
+da0806f feat(chat): realtime chat on the worker with Turso persistence
+</pre>
+<p class="small">Pushed; worker redeployed with the <code>TURSO_AUTH_TOKEN</code> secret.</p>
+</div>
+</div>
+
+<h3>11.2 What is deployed right now</h3>
+<ul>
+  <li>Worker: <code>da0806f</code> + Turso secret, live at <code>cloud-workspace-realtime.samarth07nagar.workers.dev</code>.</li>
+  <li>App: built from the current tree via <code>vercel deploy --prod</code>, aliased to <code>cloud-workspace-nine.vercel.app</code>.</li>
+</ul>
+
+<h3>11.3 Residual risks and untested areas</h3>
+<table>
+  <tr><th>Area</th><th>Status</th><th>Notes</th></tr>
+  <tr><td>Signed-out login (Google OAuth + Better Auth trusted origins)</td><td class="warn"><span class="badge warn">Not exercised</span></td><td>The test browser already had a session. The original "invalid origin" failure class was fixed (trusted origins present on Vercel) but should be re-verified from a signed-out tab after the push.</td></tr>
+  <tr><td>Meeting/call WebRTC end-to-end (two peers, media)</td><td class="warn"><span class="badge warn">Not exercised</span></td><td>Worker meeting/call handlers are unchanged; earlier sessions verified the paths. A two-browser media test remains the only true end-to-end proof.</td></tr>
+  <tr><td>Cross-user typing indicator</td><td class="warn"><span class="badge warn">Not exercised</span></td><td>Broadcast path proven via probes; needs a second signed-in user to observe UI behavior.</td></tr>
+  <tr><td>Durable Object room-name versioning</td><td><span class="badge ok">Documented</span></td><td>The <code>chat2</code> bump and the 30-day instance staleness rule are in AGENTS.md. Future handler changes to chat/meetings/calls rooms should bump room names or run migrations.</td></tr>
+  <tr><td>Environment file hygiene</td><td><span class="badge ok">Addressed</span></td><td>Trap files deleted; single local <code>.env</code>; Vercel is the sole production source of truth.</td></tr>
+</table>
+
+<h3>11.4 Recommended next actions (in order)</h3>
+<ol>
+  <li><code>git push</code> the app repo's <code>dev</code> branch so GitHub and the Vercel-linked project match what is live.</li>
+  <li>In a signed-out browser tab, sign in with Google and with a demo account; confirm both reach the workspace.</li>
+  <li>Optional: run a two-browser meeting test to formally close the WebRTC item.</li>
+</ol>
+
+<!-- =================================================================== -->
+<h2 id="s12">12. Appendix</h2>
+
+<h3>A. Files changed</h3>
+<table>
+  <tr><th>Repo</th><th>File</th><th>Change</th></tr>
+  <tr><td>app</td><td><code>components/chat/chat-socket.ts</code></td><td>Native WebSocket rewrite; <code>chat2</code> room</td></tr>
+  <tr><td>app</td><td><code>package.json</code> / <code>bun.lock</code></td><td>Removed socket.io, socket.io-client, <code>ws</code> script</td></tr>
+  <tr><td>app</td><td><code>docker-compose.yml</code></td><td>Removed <code>ws</code> service</td></tr>
+  <tr><td>app</td><td><code>AGENTS.md</code></td><td>Chat realtime + DO gotcha documentation</td></tr>
+  <tr><td>app</td><td><code>DEPLOYMENT.md</code></td><td>Worker as single realtime endpoint; Turso secrets</td></tr>
+  <tr><td>app</td><td><code>ws/server.ts</code> (deleted)</td><td>Socket.IO server removed</td></tr>
+  <tr><td>app</td><td><code>.env</code> (gitignored)</td><td>Added localhost trusted origin for local login</td></tr>
+  <tr><td>app</td><td><code>.env.prod</code>, <code>.env.vercel</code> (deleted)</td><td>Trap files removed</td></tr>
+  <tr><td>worker</td><td><code>src/chat.ts</code> (new)</td><td>Turso access + chat message building</td></tr>
+  <tr><td>worker</td><td><code>src/realtime.ts</code></td><td>Real chat handlers, room sets, auth user</td></tr>
+  <tr><td>worker</td><td><code>src/index.ts</code></td><td>Env interface: Turso pair</td></tr>
+  <tr><td>worker</td><td><code>wrangler.toml</code></td><td><code>TURSO_DATABASE_URL</code> var</td></tr>
+  <tr><td>worker</td><td><code>package.json</code> / <code>bun.lock</code></td><td><code>@libsql/client</code></td></tr>
+  <tr><td>worker</td><td><code>.dev.vars</code> (gitignored)</td><td>Turso values for local dev</td></tr>
+</table>
+
+<h3>B. Commands used</h3>
+<pre>
+# Investigation
+sqlite3 ~/.local/share/opencode/opencode.db "SELECT … FROM session_v2 …"
+sqlite3 ~/.local/share/opencode/opencode.db "SELECT data FROM session_message WHERE session_id=…"
+git log --oneline -15 -- lib/client-config.ts components/chat/chat-socket.ts
+git show 5862564
+vercel env ls production
+vercel env pull --environment=production /tmp/opencode/vercel-prod.env
+
+# Worker deploy
+cd cloud-workspace-realtime
+bun add @libsql/client
+bun run typecheck && bunx biome check --write src/
+printf '%s' "$TOKEN" | bunx wrangler secret put TURSO_AUTH_TOKEN
+bun run deploy
+
+# App
+cd cloud-workspace
+bunx biome check --write components/chat/chat-socket.ts
+bunx tsc --noEmit
+bun run lint
+bun run build
+vercel deploy --prod
+
+# Endpoint probes (HTTP/1.1 required; HTTP/2 strips the Upgrade header)
+curl --http1.1 -o /dev/null -w "%{http_code}\n" \
+  -H "Origin: https://cloud-workspace-nine.vercel.app" \
+  -H "Upgrade: websocket" -H "Connection: Upgrade" \
+  -H "Sec-WebSocket-Version: 13" -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" \
+  "https://cloud-workspace-realtime.samarth07nagar.workers.dev/?room=chat2&token=…"
+
+# Browser testing
+browser-control session new prod-test
+browser-control execute --session prod-test --file /tmp/opencode/bc-01…js
+browser-control journal -s prod-test --limit 50
+</pre>
+
+<h3>C. Key wire frames observed</h3>
+<pre>
+-- sent --
+{"type":"chat:join","payload":{"conversationIds":["018a0d4c-99b4-4bbc-a375-3b696df87948"]}}
+{"type":"message:send","payload":{"conversationId":"018a0d4c-…","body":"prod test - realtime round trip 2","clientId":"6e8f2d2d-…"}}
+
+-- received --
+{"type":"message:new","payload":{"message":{"id":"e6c0fddc-…","sender":{"id":"u-samarth","name":"Samarth","initials":"S","color":"#c9d8f7"},…}}}
+{"type":"message:sent","payload":{"clientId":"6e8f2d2d-…","message":{…}}}
+{"type":"conversations:changed","payload":{}}
+{"type":"reaction:update","payload":{"conversationId":"018a0d4c-…","messageId":"e6c0fddc-…","reactions":[{"emoji":"👍","userIds":["u-samarth"],"reactedByMe":true}]}}
+</pre>
+
+<h3>D. Postscript on process</h3>
+<p>The difference between this pass and its predecessors is a verification loop that exercises the deployed product with a real browser: instrument the client, drive a real user flow, read the wire frames, and check the database. That loop is the missing piece that made every earlier "finalize for production" pass close prematurely. It is now part of how this project's production health is assessed, and the AGENTS.md in the app repo documents the architecture accurately enough that future sessions start from reality rather than from localhost.</p>
+
+<footer>
+  Prepared on August 18, 2026 from session history, git history, deployment records, live endpoint probes, and instrumented browser tests. All findings are reproducible with the commands in Appendix B.
+</footer>
+
+</div>
+</body>
+</html>
