@@ -6,7 +6,7 @@
 <title>Cloud Workspace — Complete Development History Report</title>
 <meta name="description" content="Grand development report for Cloud Workspace: every phase, decision, failure, and fix from first commit to live production, compiled from OpenCode session history and git history.">
 <meta property="og:title" content="Cloud Workspace — Complete Development History Report">
-<meta property="og:description" content="Four days, 74 AI sessions, 61 commits: how a cloud workspace app was built, broken, diagnosed, and shipped to production.">
+<meta property="og:description" content="Four days, ~70 AI sessions, 61 commits: how a cloud workspace app was built, broken, diagnosed, and shipped to production.">
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#1f2430">
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#14161d">
 <script>
@@ -142,8 +142,8 @@
   .small { font-size: 13px; color: var(--muted); }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
-  .commit { font-family: "SF Mono", Consolas, monospace; font-size: 12.5px; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; }
-  .sid { font-family: "SF Mono", Consolas, monospace; font-size: 12px; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; white-space: nowrap; }
+  .cname { font-family: "SF Mono", Consolas, monospace; font-size: 12.5px; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; white-space: normal; }
+  .sess { font-style: italic; color: var(--accent); }
   .toc {
     font-size: 14px;
     border: 1px solid var(--line);
@@ -317,7 +317,7 @@
 <header>
   <div class="wrap">
     <h1>Cloud Workspace — Complete Development History Report</h1>
-    <p class="subtitle">Every phase, decision, failure, and fix from first commit to live production, consolidated from OpenCode session history and git history.</p>
+    <p class="subtitle">Every phase, decision, failure, and fix from first commit to live production — with the sessions, commits, effort, and reasoning behind each step.</p>
     <div class="meta">
       Compiled August 24, 2026 &nbsp;·&nbsp; App repo: <code>cloud-workspace</code> (branch <code>dev</code>, 50 commits) &nbsp;·&nbsp; Worker repo: <code>cloud-workspace-realtime</code> (branch <code>main</code>, 11 commits) &nbsp;·&nbsp; Active development: August 15–18, 2026
     </div>
@@ -346,11 +346,12 @@
   <li><a href="#s15">Phase 12 — Evening hardening</a></li>
   <li><a href="#s16">Architecture as shipped</a></li>
   <li><a href="#s17">Decision log</a></li>
-  <li><a href="#s18">Failure patterns and lessons</a></li>
-  <li><a href="#s19">Codebase statistics</a></li>
-  <li><a href="#s20">Current state and what remains</a></li>
-  <li><a href="#s21">Appendix A — Session index</a></li>
-  <li><a href="#s22">Appendix B — Commit index</a></li>
+  <li><a href="#s18">Easy, hard, and the debates</a></li>
+  <li><a href="#s19">Failure patterns and lessons</a></li>
+  <li><a href="#s20">Codebase statistics</a></li>
+  <li><a href="#s21">Current state and what remains</a></li>
+  <li><a href="#s22">Appendix A — Session index with effort</a></li>
+  <li><a href="#s23">Appendix B — Commit index</a></li>
 </ol>
 </div>
 
@@ -362,32 +363,37 @@
 
 <p>Cloud Workspace is a team collaboration app: group chat, video meetings, ephemeral calls, file storage, tasks, and workspaces with admin controls. A college developer built it in four intense days — August 15 to 18, 2026 — using OpenCode AI agents for nearly all implementation. The app went from an empty Next.js scaffold to a deployed product on a free-tier cloud stack within roughly 96 hours.</p>
 
-<p>This report consolidates that entire process. I read the full OpenCode session database for the project (74 sessions, 4,783 messages), both git repositories (61 commits), the generated migration chain, and the current source tree. Each phase below names the sessions and commits that produced it, so every claim traces back to evidence.</p>
+<p>This report consolidates that entire process. I read the full OpenCode session database for the project (~70 working sessions, 300 user messages), both git repositories (61 commits), the migration chain, and the current source tree, plus the earlier per-session statistics export (<code>opencode-sessions-report.html</code>) for token, cost, and outcome numbers. Each phase below names the sessions and commits that produced it — by name, not hash — so every claim traces back to evidence.</p>
 
 <p>The shape of the project is unusual and worth stating plainly. Day 1 built the whole product surface — UI shell, chat with a Socket.IO server, tasks, meetings, uploads, auth, workspaces — in about twelve hours. Day 2 moved the infrastructure to a deployable free-tier stack: Turso, UploadThing, and a new Cloudflare Worker repo. Day 3 matured realtime video and added calls, PostHog, and OAuth. Day 4 was supposed to be routine hardening. Instead it exposed the deepest defect in the project: the chat feature had shipped a realtime transport that could never work in production, hidden behind a REST polling fallback. The day ended with that defect root-caused, fixed in both repositories, verified against the live site with an instrumented browser, and written up — followed by a second, subtler production bug (meetings invisible across devices) found and fixed the same evening.</p>
 
-<p>Three numbers frame the story. About 9.1 million input tokens and 1.6 million output tokens of model activity produced 22,949 lines of tracked TypeScript and CSS. Recorded model cost totaled roughly ten dollars, because most sessions ran cheap flash-tier models. And the distance between "the build passes" and "the product works" — the gap this project kept falling into — closed only when verification moved from curl probes to a real browser driving the real deployment.</p>
+<p>Three numbers frame the story. Roughly 12.4 million prompt-input tokens and 1.6 million output tokens (with another 417 million served from context cache) produced 22,949 lines of tracked TypeScript and CSS, at a recorded model spend of $5.43 — most sessions ran free or near-free flash-tier models. Sixty-one commits carry the result. And the distance between "the build passes" and "the product works" — the gap this project kept falling into — closed only when verification moved from curl probes to a real browser driving the real deployment.</p>
+
+<blockquote>A focused companion covers day 4's finalization alone: <strong>production-report-2.html</strong> (originally committed as <code>PRODUCTION_REPORT.html</code>, commit "docs: add extensive production finalization report"). Its root-cause analysis, environment remediation detail, wire-frame captures, and verification tables are the deep-dive behind phases 12–15 of this document. Read it after this report for wire-level proof; read this report for the whole story.</blockquote>
 
 <!-- =================================================================== -->
 <h2 id="s2"><a class="hlink" href="#s2">2. Sources and method</a></h2>
 
 <h3>2.1 What I read</h3>
 <ul>
-  <li><strong>OpenCode session database.</strong> <code>~/.local/share/opencode/opencode.db</code> (SQLite, 1.3 GB). Tables <code>session_v2</code> and <code>session_message</code> hold every session scoped to the two project directories (<code>/home/samarth/dev/prod/cloud-workspace</code> and the realtime worker). I extracted all 300 user messages and all assistant prose parts (4,427 assistant messages, of which the text portions total ~600 KB) and read them.</li>
-  <li><strong>Git history.</strong> Full <code>git log</code> for both repositories, with per-commit dates and diffs where the narrative required them.</li>
+  <li><strong>OpenCode session database.</strong> <code>~/.local/share/opencode/opencode.db</code> (SQLite, 1.3 GB). Tables <code>session_v2</code> and <code>session_message</code> hold every session scoped to the two project directories (<code>/home/samarth/dev/prod/cloud-workspace</code> and the realtime worker). I extracted all 300 user messages and every assistant prose part (~600 KB of narrative) and read them.</li>
+  <li><strong>The earlier statistics export.</strong> <code>opencode-sessions-report.html</code>, generated August 18 at 15:27 from the same database, contributed the per-session message counts, token totals, costs, durations, and pass/fail verdicts quoted here. Its totals treat each fork as its own session; my message-level sums initially double-counted forked copies, so where the two disagree, this report uses the export's numbers.</li>
+  <li><strong>Git history.</strong> Full logs for both repositories, with per-commit dates and diffs where the narrative required them.</li>
   <li><strong>Current source tree.</strong> Package manifests, <code>next.config.ts</code>, the <code>db/</code> layer, and the ten committed Drizzle migrations, to confirm what actually ships today.</li>
 </ul>
 
 <h3>2.2 How sessions and commits relate</h3>
-<p>Most work happened in an orchestrator pattern: a planning session wrote precise specifications, then spawned parallel subagent sessions that each owned disjoint directories. Subagents reported back; the orchestrator integrated and verified. Where this report says "session X produced commit Y," the mapping comes from timestamps and commit contents, not guesswork. Session IDs appear abbreviated (<span class="sid">ses_febf8a7d</span>) and commits as short hashes (<span class="commit">8448d78</span>). Appendix A lists every notable session; Appendix B lists every commit.</p>
+<p>Most work happened in an orchestrator pattern: a planning session wrote precise specifications, then spawned parallel subagent sessions that each owned disjoint directories. Subagents reported back; the orchestrator integrated and verified. Throughout this report, sessions appear by their stored titles (in <span class="sess">italic accent text</span>) and commits by their message subjects (in <span class="cname">monospace chips</span>). Appendix A indexes every notable session with its effort profile; Appendix B lists every commit in order.</p>
 
 <h3>2.3 Headline numbers</h3>
 <table>
   <tr><th>Metric</th><th>Value</th></tr>
-  <tr><td>Sessions touching either repo</td><td>74 (including forks and subagents)</td></tr>
-  <tr><td>User messages / assistant messages</td><td>300 / 4,483</td></tr>
-  <tr><td>Tokens in / tokens out</td><td>~9.1 M / ~1.63 M</td></tr>
-  <tr><td>Recorded model spend</td><td>≈ $10 (most traffic ran free or near-free flash variants)</td></tr>
+  <tr><td>Sessions touching either repo, Aug 15–18</td><td>68 working sessions (+9 older probe sessions from April at the same workspace path)</td></tr>
+  <tr><td>User messages / assistant messages</td><td>313 / 4,349 (4,817 total incl. system events)</td></tr>
+  <tr><td>Tool calls executed</td><td>5,886</td></tr>
+  <tr><td>Tokens: input / output / cache-read</td><td>12.40 M / 1.59 M / 417.09 M (434.05 M total)</td></tr>
+  <tr><td>Recorded model spend</td><td>$5.43 — the largest single line is the "Production readiness" orchestrator at $1.30</td></tr>
+  <tr><td>Session outcomes</td><td>81% finished cleanly (60 of 74 completed at export time); 13 interrupted by the user; 1 provider failure; 1 left running; 2 inconclusive</td></tr>
   <tr><td>App commits / worker commits</td><td>50 / 11</td></tr>
   <tr><td>Tracked files / lines (TS, TSX, CSS)</td><td>195 / 22,949</td></tr>
   <tr><td>Drizzle migrations</td><td>10</td></tr>
@@ -398,30 +404,30 @@
 <h2 id="s3"><a class="hlink" href="#s3">3. Timeline at a glance</a></h2>
 
 <table>
-  <tr><th>Day</th><th>Sessions</th><th>Focus</th><th>Representative commits</th></tr>
+  <tr><th>Day</th><th>Sessions</th><th>Focus</th><th>Key commits (by name)</th></tr>
   <tr>
     <td><strong>Aug 15</strong></td>
-    <td>35</td>
+    <td>33</td>
     <td>Stack setup, full product UI, chat end-to-end (DB, REST, Socket.IO, UI), tasks, meetings, uploads, auth, workspaces, landing page, docker compose. First debugging stories at night.</td>
-    <td><span class="commit">2c239d8</span> first commit · <span class="commit">a7765a9</span> routing + chat · <span class="commit">e15e286</span> real-data home</td>
+    <td><span class="cname">first commit</span> · <span class="cname">new stuff</span> (routes + chat + shell split) · <span class="cname">real-data home page, collapsible sidebar, avatars</span></td>
   </tr>
   <tr>
     <td><strong>Aug 16</strong></td>
-    <td>20</td>
+    <td>19</td>
     <td>Free-tier deployment plan and audits; UploadThing migration with quota; Turso migration with fail-fast guards; separate realtime worker repo; fonts, icons, favicon, rebrand.</td>
-    <td><span class="commit">36b108e</span> Turso · <span class="commit">bc1e37f</span> storage quota · <span class="commit">5ee6df0</span> worker scaffold · <span class="commit">cabc92f</span> rebrand</td>
+    <td><span class="cname">use Turso with web client and add database health checks</span> · <span class="cname">enforce 100 MB workspace storage limit</span> · <span class="cname">scaffold Cloudflare realtime worker with durable objects</span> · <span class="cname">rebrand Cedar &amp; Co. to Cloud Workspace</span></td>
   </tr>
   <tr>
     <td><strong>Aug 17</strong></td>
-    <td>10</td>
-    <td>Meetings wired to the worker, camera fixes, ephemeral calls feature, worker protocol fixes, LAN origins, PostHog, OAuth prep, landing nav polish.</td>
-    <td><span class="commit">501f6cf</span> meetings on worker · <span class="commit">d504530</span> calls · <span class="commit">cf762bc</span> camera attach</td>
+    <td>5–9</td>
+    <td>Meetings wired to the worker, camera fixes, ephemeral calls, worker protocol fixes, LAN origins, PostHog, OAuth prep, landing nav polish.</td>
+    <td><span class="cname">connect video calling to the Cloudflare realtime worker</span> · <span class="cname">calls that end when hung up</span> · <span class="cname">attach local camera stream to video tile</span></td>
   </tr>
   <tr>
     <td><strong>Aug 18</strong></td>
-    <td>15</td>
+    <td>11+</td>
     <td>Production finale: dead-code sweep, build breaks, auth origin saga, root-cause analysis, chat realtime rebuilt on the worker, stale Durable Object discovery, browser verification, evening heartbeat hardening, documentation pass.</td>
-    <td><span class="commit">8448d78</span> chat on worker · <span class="commit">cf152ac</span> chat2 room · <span class="commit">62cae06</span> watchdog · <span class="commit">a19ff48</span> room versioning</td>
+    <td><span class="cname">migrate chat realtime from Socket.IO to the Cloudflare worker</span> · <span class="cname">use chat2 room to escape a stale Cloudflare DO instance</span> · <span class="cname">staleness watchdog on chat/meeting/call sockets</span> · <span class="cname">version meeting and call rooms to fresh DO instances</span></td>
   </tr>
 </table>
 
@@ -430,9 +436,9 @@
 <!-- =================================================================== -->
 <h2 id="s4"><a class="hlink" href="#s4">4. Phase 1 — Stack foundation</a></h2>
 
-<p><em>Sessions:</em> <span class="sid">ses_ffbb808a</span> · <em>Commit:</em> <span class="commit">2c239d8</span> "first commit"</p>
+<p><em>Session:</em> <span class="sess">Full stack setup Drizzle Better Auth Docker shadcn</span> — 62 messages, 1.43 M tokens, 5 minutes 19 seconds, clean finish. <em>Commit:</em> <span class="cname">first commit</span>.</p>
 
-<p>The project started at 12:47 on August 15 with one instruction: set up Drizzle with SQLite, Better Auth with OAuth, Docker Compose, and shadcn. The session hit three version quirks immediately and documented them for every future agent:</p>
+<p>This was the easiest win of the project, and the numbers show it: one five-minute session, zero follow-up bugs. One instruction — set up Drizzle with SQLite, Better Auth with OAuth, Docker Compose, and shadcn — produced the entire foundation. The session hit three version quirks immediately and documented them for every future agent:</p>
 
 <ul>
   <li>Better Auth's CLI schema generation failed under Bun (its <code>better-sqlite3</code> dependency), so it ran under plain Node. Generated output goes to <code>db/schema.ts</code>, which must never be hand-edited because regeneration overwrites it.</li>
@@ -440,80 +446,91 @@
   <li>Better Auth 1.6 rejects a body on sign-out; navigation happens client-side after <code>authClient.signOut()</code>.</li>
 </ul>
 
-<p>The foundation landed in five minutes of session time: libsql client in <code>db/index.ts</code>, four auth tables migrated, shadcn initialized on the Radix + Nova preset, a Docker Compose stub, and a demo page proving OAuth round-trips. Verification was already strict: typecheck, Biome lint, and a production build before declaring done.</p>
+<p>The foundation landed with libsql client in <code>db/index.ts</code>, four auth tables migrated, shadcn initialized on the Radix + Nova preset, a Docker Compose stub, and a demo page proving OAuth round-trips. Verification was strict from minute one: typecheck, Biome lint, and a production build before declaring done. The same session also wrote the first AGENTS.md, converting every quirk it had just hit into rules.</p>
 
 <p>The tooling decisions made here never changed: Bun as the only package manager, Biome instead of ESLint, <code>tsc --noEmit</code> as the gate before any build, and the React Compiler enabled, which bans manual memoization across the whole codebase.</p>
 
 <!-- =================================================================== -->
 <h2 id="s5"><a class="hlink" href="#s5">5. Phase 2 — Product UI and design language</a></h2>
 
-<p><em>Sessions:</em> <span class="sid">ses_ffbac1a0</span> (UI build), <span class="sid">ses_ffb9c958</span> (UX rewrite) · <em>Commit:</em> <span class="commit">a7765a9</span> "new stuff"</p>
+<p><em>Sessions:</em> <span class="sess">Cloud Workspace UI Components</span> (78 msgs, 7.32 M tokens, gpt-5.6-luna driving) and <span class="sess">Simplifying UI/UX across features</span> (50 msgs, 3.25 M tokens, $0.19). <em>Commits:</em> folded into <span class="cname">new stuff</span>.</p>
 
-<p>The user's brief was specific: a cloud workspace in the style of Notion and Linear, light theme only. They pasted Linear's actual computed CSS as reference. The session translated the token system rather than copying desktop-only rules — cool neutral surfaces, compact borders, indigo interaction color, and Inter typography — and kept the app scrollable and selectable where Linear is not.</p>
+<p>The user's brief was specific: a cloud workspace in the style of Notion and Linear, light theme only. They pasted Linear's actual computed CSS as reference. The session translated the token system rather than copying desktop-only rules — cool neutral surfaces, compact borders, indigo interaction color, and Inter typography — and kept the app scrollable and selectable where Linear is not. The reasoning was stated openly: Linear's <code>overflow: hidden</code> fixed-body rules "would break the file and document workspace experience."</p>
 
-<p>The first build produced the whole workspace chrome in one client component: sidebar, header, search dialog, create menu, profile menu, and views for home, inbox, messages, files, calls, and people, with local interaction state standing in for a backend. A follow-up UX session then found the honest defects in its own output: Inbox and People were unreachable, ⌘K was advertised but not wired, dialogs ignored Escape, buttons fired dead toasts, and roughly 200 lines of legacy view code lingered. The rewrite unified navigation, cleared unread dots on visit, and verified every flow in a live browser through Next's MCP endpoint plus agent-browser — an early appearance of the browser-first verification habit that became decisive on day 4.</p>
+<p>The first build produced the whole workspace chrome in one client component: sidebar, header, search dialog, create menu, profile menu, and views for home, inbox, messages, files, calls, and people, with local interaction state standing in for a backend. A follow-up UX session then audited its own output and found the honest defects: Inbox and People were unreachable, ⌘K was advertised but not wired, dialogs ignored Escape, buttons fired dead toasts, and roughly 200 lines of legacy view code lingered. The rewrite unified navigation, cleared unread dots on visit, and verified every flow in a live browser through Next's MCP endpoint plus agent-browser — an early appearance of the browser-first verification habit that became decisive on day 4.</p>
+
+<p>This phase also shows the collaboration rhythm at its best: the user gave taste-level feedback ("take these as inspiration" with screenshots), the agent proposed structure, and both converged fast. Nothing here needed a second pass beyond the self-audit.</p>
 
 <!-- =================================================================== -->
 <h2 id="s6"><a class="hlink" href="#s6">6. Phase 3 — Chat, built by parallel agents</a></h2>
 
-<p><em>Sessions:</em> orchestrator <span class="sid">ses_ffb9ba50</span> → fork <span class="sid">ses_ffb916ef</span>; subagents <span class="sid">ses_ffb87c03</span> (routing), <span class="sid">ses_ffb87c02</span> (DB), <span class="sid">ses_ffb81d92</span> (REST), <span class="sid">ses_ffb81d91</span> (WebSocket server), <span class="sid">ses_ffb7d1df</span> (UI) · <em>Commit:</em> folded into <span class="commit">a7765a9</span></p>
+<p><em>Orchestrator:</em> <span class="sess">Full-fledged chat feature development</span>, planned in a 12-message plan session and executed by its fork (108 msgs, 11.22 M tokens, 3 h 43 m wall-clock). <em>Subagents:</em> <span class="sess">Route the app by feature</span> (54 msgs, 3.78 M tokens), <span class="sess">Chat DB schema, seed, deps</span> (25 msgs, 706 K tokens), <span class="sess">Chat REST API routes</span> (12 msgs), <span class="sess">WebSocket chat server</span> (18 msgs), <span class="sess">Build real-time chat UI</span> (93 msgs, 9.95 M tokens — the largest single subagent). <em>Commit:</em> everything landed inside <span class="cname">new stuff</span>.</p>
 
-<p>Chat was the first feature to get the full engineering treatment, and the session shows the project's characteristic method at its best. The orchestrator planned six phases, wrote the shared type contract itself, snapshot the existing UI for later comparison, and spawned phases in parallel with hard boundaries: the DB agent could not touch <code>components/</code>; the API agent could not touch <code>db/</code>; nobody ran a dev server.</p>
+<p>Chat was the first feature to get the full engineering treatment, and the sessions show the project's characteristic method at its best. The orchestrator planned six phases, wrote the shared type contract itself, snapshotted the existing UI for later comparison, and spawned phases in parallel with hard boundaries: the DB agent could not touch <code>components/</code>; the API agent could not touch <code>db/</code>; nobody ran a dev server.</p>
 
 <h3>6.1 The routing refactor</h3>
-<p>Phase 0 split the by-now 1,962-line <code>components/workspace-shell.tsx</code> into the route group that still defines the repo: <code>app/(workspace)/</code> pages per feature, shell chrome in <code>components/shell/</code>, view bodies in <code>components/views/</code>. The constraint was byte-identical rendering — same classes, same DOM order, same behaviors — with navigation switched from local state to <code>next/link</code> and <code>usePathname()</code>. Compliance was checked mechanically: a diff script compared every className token in the new files against the pre-refactor snapshot and reported zero real losses.</p>
+<p>Phase 0 split the by-now 1,962-line <code>components/workspace-shell.tsx</code> into the route group that still defines the repo: <code>app/(workspace)/</code> pages per feature, shell chrome in <code>components/shell/</code>, view bodies in <code>components/views/</code>. The constraint was byte-identical rendering — same classes, same DOM order, same behaviors — with navigation switched from <code>next/link</code> and <code>usePathname()</code>. Compliance was checked mechanically: a diff script compared every className token in the new files against the pre-refactor snapshot and reported zero real losses.</p>
 
 <h3>6.2 Data, API, transport, UI</h3>
 <ul>
-  <li><strong>DB</strong> (<span class="sid">ses_ffb87c02</span>): four tables in a new <code>db/chat.ts</code> (conversation, conversation_member, message, message_reaction), deliberately separate from the Better Auth-generated schema. Migration <code>0001_naive_dark_beast.sql</code>. An idempotent seed script creates five demo users, three channels, four DMs, 32 staggered messages, reactions, and engineered unread counts (Samarth gets exactly three unread in <code># product</code>).</li>
-  <li><strong>REST</strong> (<span class="sid">ses_ffb81d92</span>): six routes under <code>app/api/chat/</code> covering conversations, paginated messages, send, DM creation, read markers, and reaction toggles, with signed-out users getting a read-only preview of seeded data. Dynamic params typed as Promises per the Next 16 docs.</li>
-  <li><strong>Transport</strong> (<span class="sid">ses_ffb81d91</span>): a standalone Socket.IO server, <code>ws/server.ts</code>, validating Better Auth session cookies at handshake, joining <code>conv:&lt;id&gt;</code> and <code>user:&lt;id&gt;</code> rooms, persisting messages, and emitting the event vocabulary that still exists today: <code>message:new</code>, <code>message:sent</code>, <code>message:failed</code>, <code>conversations:changed</code>, <code>reaction:update</code>, <code>typing</code>. This is the artifact that, unknown at the time, defined a protocol no production host would ever speak.</li>
-  <li><strong>UI</strong> (<span class="sid">ses_ffb7d1df</span>): conversation list with unread badges, thread with date separators and load-older, optimistic composer with rollback, eight-emoji reaction popover, typing indicator, new-message dialog, mobile list↔thread swap. Two correctness catches stand out: the server echoes <code>message:new</code> to the sender, so a pending-send map swaps the optimistic message instead of duplicating it; and a race where a socket event landing during initial fetch would be overwritten — fixed by merging rather than replacing.</li>
+  <li><strong>DB</strong> (<span class="sess">Chat DB schema, seed, deps</span>): four tables in a new <code>db/chat.ts</code> (conversation, conversation_member, message, message_reaction), deliberately separate from the Better Auth-generated schema. Migration <code>0001_naive_dark_beast.sql</code>. An idempotent seed script creates five demo users, three channels, four DMs, 32 staggered messages, reactions, and engineered unread counts — Samarth gets exactly three unread in <code># product</code>, verified by direct query.</li>
+  <li><strong>REST</strong> (<span class="sess">Chat REST API routes</span>): six routes under <code>app/api/chat/</code> covering conversations, paginated messages, send, DM creation, read markers, and reaction toggles, with signed-out users getting a read-only preview of seeded data. Dynamic params typed as Promises per the Next 16 docs.</li>
+  <li><strong>Transport</strong> (<span class="sess">WebSocket chat server</span>): a standalone Socket.IO server, <code>ws/server.ts</code>, validating Better Auth session cookies at handshake, joining <code>conv:&lt;id&gt;</code> and <code>user:&lt;id&gt;</code> rooms, persisting messages, and emitting the event vocabulary that still exists today: <code>message:new</code>, <code>message:sent</code>, <code>message:failed</code>, <code>conversations:changed</code>, <code>reaction:update</code>, <code>typing</code>. This artifact defined a protocol no production host would ever speak — the seed of the day-4 crisis.</li>
+  <li><strong>UI</strong> (<span class="sess">Build real-time chat UI</span>): conversation list with unread badges, thread with date separators and load-older, optimistic composer with rollback, eight-emoji reaction popover, typing indicator, new-message dialog, mobile list↔thread swap. Two correctness catches stand out. The server echoes <code>message:new</code> to the sender, so id-dedupe would double-append optimistic messages — fixed with a pending-send map keyed by client id, swapped on the real event. And a race where a socket event landing during initial fetch would be overwritten — fixed by merging rather than replacing.</li>
 </ul>
 
-<p>The orchestrator's own review pass then found and fixed two cross-client sync gaps before calling the feature done. Total elapsed time from plan to verified: about 55 minutes of wall-clock time, with five agents working concurrently.</p>
+<p>The orchestrator's own review pass then found and fixed two cross-client sync gaps before calling the feature done: list panes of other users didn't refresh on new messages (member-room broadcast missing), and opening a conversation didn't clear its badge. Total elapsed time from approved plan to verified: about 55 minutes of active work, spread over five agents. Every subagent finished green on its first pass — this phase made the parallel-agent method look effortless, which is exactly why its transport decision went unexamined.</p>
 
 <!-- =================================================================== -->
 <h2 id="s7"><a class="hlink" href="#s7">7. Phase 4 — Feature sweep</a></h2>
 
-<p><em>Sessions:</em> tasks <span class="sid">ses_ffaf9745</span>, meetings <span class="sid">ses_ffaf74af</span>, uploads <span class="sid">ses_ffaf29b3</span>, auth <span class="sid">ses_ffae8cc5</span>, workspaces <span class="sid">ses_ffae7762</span>, landing <span class="sid">ses_ffa9db3c</span>, home <span class="sid">ses_ff9c386b</span>, meetings admin <span class="sid">ses_ff9b1899</span>, docker <span class="sid">ses_ffa9b450</span> · <em>Commits:</em> mostly inside <span class="commit">a7765a9</span>; <span class="commit">e15e286</span>, <span class="commit">9066982</span>, <span class="commit">9fcffac</span>, <span class="commit">d343a0a</span>, <span class="commit">3b509cb</span>, <span class="commit">7fce290</span>, <span class="commit">66031a5</span></p>
+<p><em>Sessions:</em> <span class="sess">Task manager with list, calendar, todo, timeline</span> (301 msgs, 42.49 M tokens, $0.39), <span class="sess">Meeting feature and video call interface</span> (134 msgs, 11.74 M tokens), <span class="sess">Upload feature for images, files, docs</span> (279 msgs, 40.26 M tokens, 5 h 42 m span), <span class="sess">Signup/signin page with auth and mock data</span> (116 msgs), <span class="sess">Workspace data isolation and admin management</span> (150 msgs, 20.65 M tokens, $0.20), plus landing, home-page, meetings-admin, sidebar, responsiveness, and docker sessions. <em>Commits:</em> mostly inside <span class="cname">new stuff</span>; later polish in <span class="cname">real-data home page, collapsible sidebar, avatars</span>, <span class="cname">compress uploaded avatars and workspace logos client-side</span>, <span class="cname">sidebar shows only live meetings and polls for status changes</span>, <span class="cname">docker compose setup for local development</span>, <span class="cname">expand landing page with full product sections</span>, <span class="cname">improve mobile responsiveness</span>, <span class="cname">keep sidebar fixed height on non-messages pages</span>.</p>
 
-<p>With chat proven, the afternoon replicated the pattern across every remaining surface — usually several features in flight at once.</p>
+<p>With chat proven, the afternoon replicated the pattern across every remaining surface — usually several features in flight at once. This phase contains both the biggest easy wins and the first grind.</p>
 
-<h3>7.1 Tasks</h3>
-<p>A task manager with list, calendar, todo, and timeline views, then drag-and-drop between them, file attachments from the uploads area, user mentions, and reminders that materialize as inbox notifications when their time passes. This session also produced the first data-layer incident: a stale Drizzle snapshot referenced a deleted migration file, <code>db:migrate</code> silently half-applied changes, and the recovery rebuilt the local database from scratch — acceptable because all data was seed data, and the journal-vs-reality mismatch was documented.</p>
+<h3>7.1 Tasks — the hardest concurrent session of day 1</h3>
+<p>A task manager with list, calendar, todo, and timeline views, drag-and-drop between them, attachments from the uploads area, mentions, and reminders that materialize as inbox notifications when due. At 301 messages and 42.49 M tokens it ties the production-readiness orchestrator as the largest session of the project, and much of that bulk was friction the transcript records honestly: the migration journal referenced a deleted file, <code>db:migrate</code> silently half-applied changes, and recovery rebuilt the local database from scratch — acceptable because all data was seed data. Meanwhile two other agents kept editing shared files mid-flight, producing a stream of "remaining errors are the other agent's" notes. The feature shipped complete anyway.</p>
 
 <h3>7.2 Meetings and video</h3>
-<p>Meeting tables and API joined the stack, and <code>ws/server.ts</code> grew WebRTC signaling: presence, offer/answer/ICE relay. The room UI is a full-screen mesh call — local preview, remote tiles with mic/cam/share states, mute, screen share, invite links, host end-for-all. The session caught a genuine distributed-systems bug in review: <em>glare</em>, where both peers create peer connections and send offers simultaneously, deadlocking negotiation. Fix: only the newcomer initiates.</p>
+<p>Meeting tables and API joined the stack, and <code>ws/server.ts</code> grew WebRTC signaling: presence, offer/answer/ICE relay. The room UI is a full-screen mesh call — local preview, remote tiles with mic/cam/share states, mute, screen share, invite links, host end-for-all. The session caught a genuine distributed-systems bug in self-review: <em>glare</em>, where both peers create peer connections and send offers simultaneously, deadlocking negotiation. Fix: only the newcomer initiates. Nobody asked for that check; the reviewing agent found it while reading its own signaling code.</p>
 
 <h3>7.3 Files and uploads</h3>
-<p>Uploads to local disk under <code>public/uploads/</code> with folders, list/grid views, sorting, renaming, and drag-and-drop. Bugs found by use: dragging a grid photo re-uploaded it as a file (fixed by checking <code>dataTransfer.types</code> for <code>"Files"</code>), and clicking images opened new tabs until a lightbox with keyboard navigation replaced them. File-type icons were later redrawn as hand-built multi-tone SVG glyphs in <code>components/files/file-glyphs.tsx</code> after the user asked for macOS-style detail.</p>
+<p>Uploads to local disk under <code>public/uploads/</code> with folders, list/grid views, sorting, renaming, drag-and-drop. Bugs surfaced by use, each fixed the hour it appeared: dragging a grid photo re-uploaded it as a file (fixed by checking <code>dataTransfer.types</code> for <code>"Files"</code>); clicking images opened new tabs until a keyboard-navigable lightbox replaced them. File-type icons were redrawn as hand-built multi-tone SVG glyphs in <code>components/files/file-glyphs.tsx</code> after the user asked for macOS-style detail — a request the session answered with original vector work, not an icon-pack swap.</p>
 
 <h3>7.4 Auth and multi-tenancy</h3>
-<p>A sign-in/sign-up page arrived with seeded demo accounts and a shared demo password — convenient, and, as the day-2 security audit later flagged, a critical exposure if ever left in a public deployment. Workspace isolation landed the same day: <code>workspace</code> and <code>workspace_member</code> tables with admin/member roles, Samarth as admin, workspace scoping added to every read and write including the WebSocket server, a settings page with invite/role/remove flows guarded by a last-admin check, and live verification that member Maya gets 403s and that a fresh signup sees zero Cedar data.</p>
+<p>A sign-in/sign-up page arrived with seeded demo accounts and a shared demo password — convenient, and, as the day-2 security audit later flagged, a critical exposure if ever left in a public deployment. Workspace isolation landed the same day: <code>workspace</code> and <code>workspace_member</code> tables with admin/member roles, Samarth as admin, workspace scoping added to every read and write including the WebSocket server, a settings page with invite/role/remove flows guarded by a last-admin check. Verification was live and adversarial: member Maya got 403s on admin actions, a fresh signup saw zero Cedar data, cross-workspace writes returned 404/403, demoting the last admin was blocked.</p>
 
-<h3>7.5 Product polish</h3>
-<p>Landing page for signed-out visitors, a real logged-in home page (the user asked the agent to interview them about what belongs there), collapsible sidebar with live-meeting indicator, avatar and logo uploads with client-side compression, mobile responsiveness passes, and Docker Compose wiring the dev server and the Socket.IO process.</p>
+<h3>7.5 Product polish by rapid fire</h3>
+<p>Landing page for signed-out visitors (the single most expensive small session — glm-5.3 at $0.75 for 52 messages, a reminder that model price varies wildly); a logged-in home page where the user asked the agent to interview them about content first; collapsible sidebar with live-meeting indicator; avatar/logo uploads with client-side compression; two mobile-responsiveness passes; Docker Compose wiring. Small frustrations got solved with archaeology: when the user said the sidebar's green live-meeting tint "is not how it used to be," the agent mined earlier session history to recover the exact previous style before restoring it.</p>
 
 <!-- =================================================================== -->
 <h2 id="s8"><a class="hlink" href="#s8">8. Phase 5 — First debugging stories</a></h2>
 
-<p><em>Sessions:</em> <span class="sid">ses_ffa94984</span> ("bun run ws not working"), <span class="sid">ses_ffb02d21</span> (layout fixes)</p>
+<p><em>Sessions:</em> <span class="sess">bun run ws not working</span> (87 msgs, 3.56 M tokens) and <span class="sess">Fill chat area; remove New message and Messages</span> (175 msgs, 17.41 M tokens, deepseek-v4-pro).</p>
 
-<p>On the first evening the user reported that messages would not send in some chats, and that some chats showed every message as sent by "Jordan Lee." The investigation is worth retelling because it previewed the project's failure modes in miniature.</p>
+<p>On the first evening the user reported that messages would not send in some chats, and that some chats showed every message as sent by "Jordan Lee." The investigation — later retold by the session itself as "The Case of the Phantom Jordan Lee" — is worth keeping because it previews every later failure mode in miniature.</p>
 
-<p>Database timestamps showed test messages alternating between <code>u-samarth</code> and <code>u-jordan</code> — the user had been playing both sides of a conversation in two windows. A ghost session made it worse: a user row deleted by a reseed left its session row behind, so one window held credentials for a person who no longer existed and silently received the read-only preview. Meanwhile the running Socket.IO process kept a stale file handle on a replaced <code>sqlite.db</code> and acknowledged writes into the void. Code was never broken; identity and process state were. Remediation deleted the polluted test conversation, cleared chat data at the user's request, reseeded, and wrote the lessons down — including "restart <code>bun run ws</code> after any reseed," which later entered AGENTS.md.</p>
+<p>Database timestamps showed test messages alternating between <code>u-samarth</code> and <code>u-jordan</code>: the user had been playing both sides of a conversation in two windows. A ghost session made it worse — a user row deleted by a reseed left its session row behind, so one window held credentials for a person who no longer existed and silently received the read-only preview. Meanwhile the running Socket.IO process kept a stale file handle on a replaced <code>sqlite.db</code> and acknowledged writes into the void. As the session put it: "the docs had warned about exactly this. The docs always warn, and we never listen." Code was never broken; identity and process state were. Remediation deleted the polluted test conversation, cleared chat data at the user's request, reseeded, and wrote the lessons down — including "restart the ws process after any reseed," which later entered AGENTS.md.</p>
 
 <!-- =================================================================== -->
 <h2 id="s9"><a class="hlink" href="#s9">9. Phase 6 — The $0 deployment plan and audits</a></h2>
 
-<p><em>Sessions:</em> strategy Q&amp;A <span class="sid">ses_ffa9aa89</span>, orchestrator <span class="sid">ses_ff95b1a1</span> (+ forks <span class="sid">ses_ff8a1c8c</span>, <span class="sid">ses_ff8a16c2</span>), audits <span class="sid">ses_ff95915a</span>×2, integration check <span class="sid">ses_ff95662a</span>, research <span class="sid">ses_ff8a3774</span>/<span class="sid">ses_ff8a3775</span>/+2, plan <span class="sid">ses_ff89fd7b</span></p>
+<p><em>Sessions:</em> strategy Q&amp;A <span class="sess">Free deploy: Turso, UploadThing, Vercel, Workers</span> (34 msgs), the giant orchestrator <span class="sess">Production readiness and dead code cleanup</span> (301 msgs, 63.25 M tokens, $1.30 — the largest session of the project, interrupted and continued through forks <span class="sess">…(fork #1)</span> twice), audits <span class="sess">Audit app architecture</span> and <span class="sess">Audit security surfaces</span> (27 + 23 msgs), integration check <span class="sess">Verify deployment integrations</span>, research specs <span class="sess">Durable Objects WS spec</span>, <span class="sess">Verify package versions</span>, <span class="sess">UploadThing v7 integration spec</span>, <span class="sess">Socket and upload impact audit</span>, and the user-pasted plan in <span class="sess">Deployment plan: Turso, UploadThing, WebSockets</span>.</p>
 
-<p>Late on day 1 the user asked how to deploy for free. The answer defined the rest of the project. The app's needs mapped onto four services: Turso for the database (libsql-compatible, same client), UploadThing for file blobs (serverless hosts have ephemeral disks), Vercel for the Next.js app, and Cloudflare Workers with Durable Objects for realtime. The reasoning was candid about trade-offs: Socket.IO cannot survive on Vercel; chat could ship degraded on REST polling, but calls would be dead without a socket; Workers' Hibernation API makes idle connections nearly free; and WebRTC media is peer-to-peer anyway, so the Worker only relays the handshake.</p>
+<p>Late on day 1 the user asked how to deploy for free. The answer defined the rest of the project. The app's needs mapped onto four services: Turso for the database (libsql-compatible, same client), UploadThing for file blobs (serverless hosts have ephemeral disks), Vercel for the Next.js app, and Cloudflare Workers with Durable Objects for realtime.</p>
 
-<p>The research subagents gathered version facts that steered concrete choices: uploadthing 7.7.4, <code>@libsql/client/web</code> 0.17.4, wrangler 4.x (Node-only install), DO Hibernation GA with up to 32,768 sockets per object, and a warning that turned prophetic — <em>every code deploy restarts Durable Objects and drops open connections</em>.</p>
+<p>This phase is where the discussion record shines, because the user pushed with questions and the sessions reasoned back in depth:</p>
+<ul>
+  <li>"So I don't need realtime?" — Answer: chat survives on REST polling at ~5 s delay; <em>calls die</em>, because signaling has no fallback.</li>
+  <li>"Can I make calls work P2P?" — Yes, media is already peer-to-peer; only the handshake relays. The exchange produced the project's best analogy: WebRTC is the phone call, the signaling server is the phone book — "you need the phone book to start the call, but the conversation doesn't travel through it."</li>
+  <li>"Do Cloudflare Workers support WS, for free?" — Yes, with the billing math worked out live: connection = 1 request, incoming messages billed 20:1, outgoing and pings free, Hibernation avoids idle duration charges; 20 chatty users ≈ a few thousand requests a day, under 5% of the free cap.</li>
+  <li>Group-call honesty: mesh means each client uploads N−1 streams — "2 people trivial, 3–5 okay, beyond that upload bandwidth dies," which is why real products run SFUs. No TURN relay means symmetric-NAT pairs fail. Both limits accepted for a demo and documented.</li>
+  <li>A tangent became a design exercise: the user sketched a no-signup key-based call site; the session sized it (~600–1000 lines), flagged key-leakage and quota-spam risks, and validated the concept — pure discussion, no code, showing how the sessions were used as a thinking partner too.</li>
+</ul>
 
-<p>Two audits then inventoried production risks. The findings that mattered most:</p>
+<p>Research subagents gathered version facts that steered concrete choices: uploadthing 7.7.4, <code>@libsql/client/web</code> 0.17.4, wrangler 4.x (Node-only install), DO Hibernation GA with up to 32,768 sockets per object — and a warning that turned prophetic: <em>every code deploy restarts Durable Objects and drops open connections</em>.</p>
+
+<p>Two audits then inventoried production risk. The findings that mattered most:</p>
 <ul>
   <li>The signed-out "preview" mode fell back to the <em>first workspace in the database</em> on every read path — a data leak waiting for a second tenant.</li>
   <li>Meeting rooms accepted unauthenticated joins and relayed WebRTC signals to anyone with a meeting ID; guests could flip scheduled meetings to live.</li>
@@ -523,92 +540,94 @@
   <li>SQLite foreign keys were declared but never enforced per connection; cascades did not cascade.</li>
 </ul>
 
-<p>The orchestrator session converted all of it into a phased plan — Turso, UploadThing, Worker with token auth and origin allowlists, security headers, error boundaries, health checks — and the user approved the four-service architecture in <span class="sid">ses_ff95b1a1</span> with the words that set day 2's agenda. Notably, this 301-message session died mid-pass and survives as a fork; the framework restarted the work without a checkpoint. That interruption pattern recurs.</p>
+<p>The orchestrator converted all of it into a phased plan — Turso, UploadThing, Worker with token auth and origin allowlists, security headers, error boundaries, health checks. Notably, this 301-message session died mid-pass and survived only as forks; the framework restarted the work without a checkpoint. That interruption pattern recurs, and the user felt it: getting the plan executed took three attempts across two days.</p>
 
 <!-- =================================================================== -->
 <h2 id="s10"><a class="hlink" href="#s10">10. Phase 7 — Infra migrations</a></h2>
 
-<p><em>Sessions:</em> UploadThing <span class="sid">ses_ff69ea22</span>, Turso <span class="sid">ses_ff688ae9</span>, worker dev-vars <span class="sid">ses_ff656f7a</span>; icons <span class="sid">ses_ff69ac7d</span>, favicon <span class="sid">ses_ff68c3c2</span>, fonts <span class="sid">ses_ff6510dc</span>, rebrand <span class="sid">ses_ff64e6d5</span> · <em>Commits:</em> <span class="commit">e25c925</span>, <span class="commit">bc1e37f</span>, <span class="commit">f426ebb</span>, <span class="commit">36b108e</span>, <span class="commit">3699dd7</span>, <span class="commit">ee14313</span>, <span class="commit">876425e</span>, <span class="commit">fd3f7fb</span>, <span class="commit">cabc92f</span>; worker <span class="commit">5ee6df0</span>, <span class="commit">d119a92</span>, <span class="commit">b1c5ab2</span></p>
+<p><em>Sessions:</em> <span class="sess">Migrating file uploads to UploadThing from fs</span> (128 msgs, 12.44 M tokens), <span class="sess">Turso database integration tasks</span> (132 msgs, 7.63 M tokens), <span class="sess">Configure .dev.vars for WebSocket dev setup</span> (18 msgs, worker repo); identity sessions <span class="sess">Pixel Art Icons integration</span>, <span class="sess">Favicon creation for project</span> (36 msgs, six design iterations ending in a 20-variant gallery page), <span class="sess">Using Schibsted Grotesk for headings</span>, <span class="sess">Rebranding Cedar &amp; Co. to cloud workspace</span>. <em>Commits:</em> <span class="cname">migrate file uploads from filesystem to UploadThing</span>, <span class="cname">enforce 100 MB workspace storage limit and show usage</span>, <span class="cname">backfill legacy uploads to UploadThing</span>, <span class="cname">use Turso with web client and add database health checks</span>, <span class="cname">fail fast without prod DB URL, deploy migrations, purge UploadThing on workspace delete</span>, <span class="cname">prefer SQLite in development so local demo accounts work</span>, <span class="cname">replace lucide-react with pixelarticons icons</span>, <span class="cname">Schibsted Grotesk headings, Hanken Grotesk body</span>, <span class="cname">rebrand Cedar &amp; Co. to Cloud Workspace</span>; worker: <span class="cname">scaffold Cloudflare realtime worker with durable objects</span>, <span class="cname">use http origin for local wrangler dev</span>, <span class="cname">implement meeting signaling in RealtimeRoom</span>.</p>
 
 <h3>10.1 UploadThing</h3>
-<p>Filesystem writes gave way to UploadThing v7 route handlers with session-aware middleware, <code>utapi.deleteFiles</code> on deletes, and URL helpers that always produce <code>utfs.io</code> links. The user asked for a hard cap, and got a three-layer one: middleware rejects the request before bytes transfer when a workspace exceeds 100 MB, the insert path re-checks inside a transaction (two concurrent uploads cannot both slip through; the blocked upload's remote file is deleted), and a shared helper computes usage from live rows including legacy ones. A storage pill on the files page turns amber at 80% and rose at 100%. A backfill script migrated nine legacy files plus the workspace logo, reusing already-uploaded keys after its first run crashed post-upload pre-database-update — the kind of partial-state bug the retry logic now guards against.</p>
+<p>Filesystem writes gave way to UploadThing v7 route handlers with session-aware middleware, <code>utapi.deleteFiles</code> on deletes, and URL helpers that always produce <code>utfs.io</code> links. The user asked for a hard cap, and got a three-layer one: middleware rejects the request before bytes transfer when a workspace exceeds 100 MB, the insert path re-checks inside a transaction (two concurrent uploads cannot both slip through; the blocked upload's remote file is deleted), and a shared helper computes usage from live rows including legacy ones. A storage pill on the files page turns amber at 80% and rose at 100%. The backfill exposed a partial-state bug the retry logic now guards against: the first run uploaded all ten files, then crashed unwrapping the response shape before updating the database — the fix reused the already-uploaded keys instead of re-uploading.</p>
 
 <h3>10.2 Turso</h3>
 <p>The web libsql client replaced the file client for production, health checks arrived, and <code>db/index.ts</code> learned to fail fast: production without <code>TURSO_DATABASE_URL</code> throws at startup, verified by a clean-environment test. Migrations moved into the deploy itself — <code>db:deploy</code> runs before <code>next build</code> on Vercel, so a failed migration fails the deployment, which the plan explicitly wanted. Workspace deletion now purges remote UploadThing objects.</p>
 
-<p>Two follow-up incidents taught the env-precedence lesson early. With both <code>DATABASE_URL</code> and <code>TURSO_DATABASE_URL</code> present, the client preferred Turso unconditionally and the developer's local login broke against an unseeded cloud database — fixed in <span class="commit">ee14313</span> so development reads SQLite and production reads Turso. Then the user asked for data parity; a filtered INSERT-only dump (117 statements) brought all twelve tables to identical row counts, demo passwords included.</p>
+<p>Two follow-up incidents taught the env-precedence lesson early. With both <code>DATABASE_URL</code> and <code>TURSO_DATABASE_URL</code> present, the client preferred Turso unconditionally and the developer's local login broke against an unseeded cloud database — fixed in <span class="cname">prefer SQLite in development so local demo accounts work</span>. When the user then asked "but all data is pushed into Turso too, right?", the answer was no — schema only — and a filtered INSERT-only dump (117 statements) brought all twelve tables to identical row counts, demo passwords included.</p>
 
 <h3>10.3 The realtime worker repo</h3>
-<p>The user asked whether the Worker should live in its own repository; the answer was yes, and <code>cloud-workspace-realtime</code> was born: wrangler config, a <code>RealtimeRoom</code> Durable Object, origin allowlist, loopback allowances for local dev, upgrade-header preservation through the DO, meeting signaling, and later a <code>call:hangup</code> broadcast and round-trip tests. Authentication moved from cookies to short-lived JWTs minted by <code>/api/realtime/token</code>, because the Better Auth cookie lives on the Vercel domain, not the Workers domain. The shared <code>WS_AUTH_SECRET</code> mismatch (31-char vs 64-hex) was caught before it could bite.</p>
+<p>The user asked whether the Worker should live in its own repository — "would that be better and simpler?" The answer was yes, and <code>cloud-workspace-realtime</code> was born: wrangler config, a <code>RealtimeRoom</code> Durable Object, origin allowlist, loopback allowances for local dev, upgrade-header preservation through the DO, meeting signaling, and later a <code>call:hangup</code> broadcast and round-trip frame tests. Authentication moved from cookies to short-lived JWTs minted by <code>/api/realtime/token</code>, because the Better Auth cookie lives on the Vercel domain, not the Workers domain. The shared <code>WS_AUTH_SECRET</code> mismatch (31-char vs 64-hex) was caught before it could bite — a small save that mattered enormously two days later.</p>
 
-<h3>10.4 Identity</h3>
-<p>The visual identity settled in the same window: PixelArticons replaced lucide, Schibsted Grotesk took headings and Hanken Grotesk body text, a favicon went through six iterations to a rounded white app-grid tile, and "Cedar &amp; Co." became Cloud Workspace everywhere.</p>
+<h3>10.4 Identity, with taste friction</h3>
+<p>Visual identity settled here, with the user firmly in the loop: PixelArticons replaced lucide in one smooth swap; Schibsted Grotesk took headings and Hanken Grotesk body; the favicon went through six rejections ("no something else", "looks bad try again white background") before the user took control — "make a page with 20 of these icons in a html file… ill chose from them" — and picked the rounded white app-grid tile; and "Cedar &amp; Co." became Cloud Workspace everywhere. The branding session is the export's only outright <em>Fail</em> verdict (a provider error mid-run), yet its work landed and stuck — a reminder that the verdict field grades the session's ending, not its output.</p>
 
 <!-- =================================================================== -->
 <h2 id="s11"><a class="hlink" href="#s11">11. Phase 8 — Realtime matures</a></h2>
 
-<p><em>Sessions:</em> video fixes <span class="sid">ses_ff648429</span>, calls <span class="sid">ses_ff63f124</span>, explore <span class="sid">ses_ff63ee98</span>, mobile login <span class="sid">ses_ff63aa98</span>, landing nav <span class="sid">ses_fef66932</span>, PostHog <span class="sid">ses_fef47bb6</span>, OAuth <span class="sid">ses_fef279de</span> · <em>Commits:</em> <span class="commit">501f6cf</span>, <span class="commit">a61ebf5</span>, <span class="commit">e277f6c</span>, <span class="commit">2e2a1bc</span>, <span class="commit">7c7f760</span>, <span class="commit">cf762bc</span>, <span class="commit">d504530</span>, <span class="commit">ac1343a</span>, <span class="commit">1c3db79</span>, <span class="commit">8fdf08f</span>; worker <span class="commit">949191a</span>, <span class="commit">4fda148</span>, <span class="commit">5548bae</span>, <span class="commit">50b5f99</span></p>
+<p><em>Sessions:</em> <span class="sess">Fix video calling after WS migration</span> (184 msgs, 20.59 M tokens, gpt-5.6-luna, spanning 23 hours of wall-clock), <span class="sess">Add call option on calls page and chat</span> (164 msgs, 24.05 M tokens, interrupted once, resumed next day), <span class="sess">Explore calls, meetings, chat structure</span>, <span class="sess">Demo account selection on mobile login</span>, <span class="sess">Custom landing page nav with icons design</span> (48 msgs, $0.38, gpt-5.6-luna), <span class="sess">PostHog setup for app</span> (44 msgs, browser-verified), <span class="sess">Enabling OAuth authentication</span>. <em>Commits:</em> <span class="cname">connect video calling to the Cloudflare realtime worker</span>, <span class="cname">allow LAN origin in dev so client JS hydrates on phone</span>, <span class="cname">make leaving a call the red action</span>, <span class="cname">group messages with matching sender time</span>, <span class="cname">reduce grouped message spacing</span>, <span class="cname">attach local camera stream to video tile</span>, <span class="cname">calls that end when hung up</span>, <span class="cname">floating pill nav with icon links and scroll-spy</span>, <span class="cname">match nav backdrop to hero background</span>, <span class="cname">render headings at weight 500</span>; worker: <span class="cname">allow local loopback origins</span>, <span class="cname">preserve websocket upgrade headers through durable object</span>, <span class="cname">exercise websocket frame round trips with origin</span>, <span class="cname">broadcast call:hangup for ephemeral call rooms</span>.</p>
 
-<p>After the WS migration, video calling broke — the first direct consequence of moving transports. Fixes rolled in over a day: connecting the meeting room to the worker's protocol (<span class="commit">501f6cf</span>), allowing LAN origins in dev so a phone could hydrate (<span class="commit">a61ebf5</span>), and the subtlest one, a camera that stayed dark because <code>getUserMedia</code> resolved before the video tile mounted — the stream existed but was never attached, fixed by reattaching on mount and on device toggles (<span class="commit">cf762bc</span>). When a black frame persisted, frame-level browser checks proved the track live and identified the controlled browser's synthetic camera as the culprit, not the code.</p>
+<p>After the WS migration, video calling broke — the first direct consequence of moving transports. Fixes rolled in over a day: connecting the meeting room to the worker's protocol; allowing LAN origins so a phone could hydrate; and the subtlest one, a camera that stayed dark because <code>getUserMedia</code> resolved before the video tile mounted — the stream existed but was never attached. Getting there took three hypotheses in sequence: socket state (wrong), mount timing (right, fixed in <span class="cname">attach local camera stream to video tile</span>), and finally a black frame that persisted even with a live track — resolved only when frame-level browser checks proved the feed itself was the controlled browser's synthetic camera. The lesson recorded: verify the sensor, not just the element.</p>
 
-<p>Calls arrived as a deliberate contrast to meetings: short-lived one-on-one or group rooms that die when ended, versus persistent meeting rooms. Lifecycle: created <code>ringing</code>, first non-host join flips <code>live</code>, host ends or a heartbeat sweep auto-ends anything silent past 90 seconds. Entry points cover the calls page, a new-call dialog, and a call panel embedded in chat headers. Its launch 500'd instructively — migration 0009 had been applied to Turso while dev read <code>sqlite.db</code>, so <code>no such table: call</code> — resolved by applying migrations to the file the app actually reads, plus a shell-quoting lesson about empty-string environment overrides.</p>
+<p>Calls arrived as a deliberate contrast to meetings: short-lived rooms that die when ended versus persistent meeting rooms. Lifecycle: created <code>ringing</code>, first non-host join flips <code>live</code>, host ends or a heartbeat sweep auto-ends anything silent past 90 seconds. Entry points cover the calls page, a new-call dialog, and a call panel embedded in chat headers. Its launch 500'd instructively — migration 0009 had been applied to Turso while dev read <code>sqlite.db</code>, so <code>no such table: call</code> — resolved by applying migrations to the file the app actually reads, plus a shell-quoting lesson about empty-string environment overrides defeating <code>??</code> defaults. The session was interrupted mid-feature and finished the next evening without losing state — the fork/resume machinery quietly doing its job.</p>
 
-<p>Analytics and identity closed the day: PostHog with provider, masking, user identification, logout reset, and browser-verified ingestion; OAuth credentials wired for GitHub and Google with the practical guidance that GitHub allows one callback URL while Google allows many. Chat gained message grouping by sender/time. Landing nav became a floating pill with scroll-spy after a visible fight with backdrop whitespace.</p>
+<p>Analytics and identity closed the era: PostHog with provider, masking, user identification, logout reset, and ingestion verified in the browser within half an hour — one of the smoothest sessions of the week. OAuth credentials were wired for GitHub and Google with practical guidance (GitHub allows one callback URL; Google allows many; you need a deployed URL before consoles will accept redirects). Landing nav became a floating pill with scroll-spy after a visible fight with backdrop whitespace that took several screenshot-driven rounds. And a heading-font experiment (Chivo semibold) was tried and reverted the same night — the user's instinct for the Schibsted look won.</p>
 
 <!-- =================================================================== -->
 <h2 id="s12"><a class="hlink" href="#s12">12. Phase 9 — Production finale, part one</a></h2>
 
-<p><em>Sessions:</em> secrets scan <span class="sid">ses_fec5f2b0</span>, audits <span class="sid">ses_fec4eaa0</span>/<span class="sid">ses_fec4eaa1</span>, workers deploy <span class="sid">ses_fec4d642</span>, DO explainer <span class="sid">ses_fec4d506</span>, dead code <span class="sid">ses_fec31789</span> + <span class="sid">ses_fec3158d</span>, env triage <span class="sid">ses_fec0bd8b</span>, invalid origin <span class="sid">ses_fec04814</span> · <em>Commits:</em> <span class="commit">10f7d64</span>, <span class="commit">ed05abb</span>, <span class="commit">a80478b</span>, <span class="commit">0331dc5</span>, <span class="commit">23f0532</span>, <span class="commit">5862564</span>, <span class="commit">e5b34de</span></p>
+<p><em>Sessions:</em> <span class="sess">Vercel CLI unused secrets scan</span>, <span class="sess">Audit production code</span> + <span class="sess">Research Vercel guidance</span>, <span class="sess">Deploy project on Workers</span> + <span class="sess">Durable Object usage question</span>, <span class="sess">Remove unused code and data from app</span> (91 msgs), <span class="sess">Vercel build error: module not found recents-data</span> (105 msgs), <span class="sess">Prod .env values: localhost vs sqlite.db</span>, <span class="sess">Vercel prod invalid origin login error</span> (95 msgs). <em>Commits:</em> <span class="cname">harden Vercel production deployment</span>, <span class="cname">reject insecure client URLs in production</span>, <span class="cname">configure deployed realtime worker URL</span>, <span class="cname">add recents API and analytics; harden production build</span>, <span class="cname">remove dead code</span>, <span class="cname">allow localhost BETTER_AUTH_URL in Vercel build guard</span>, <span class="cname">allow PostHog scripts in CSP</span>.</p>
 
-<p>Morning of August 18 opened confidently: the Vercel project had zero environment variables at 12:18, the worker deployed cleanly, and the audit checklist was in hand. Then the failures started, each one teaching something.</p>
+<p>Morning of August 18 opened confidently: the Vercel project had zero environment variables at 12:18, the worker deployed cleanly, and the audit checklist was in hand. Then the failures started, each one teaching something. This is the stretch production-report-2.html dissects in forensic detail; here is the arc with its people moments intact.</p>
 
 <h3>12.1 Dead code and the build that broke twice</h3>
-<p>A knip-driven sweep removed 312 lines across 18 files — dead exports, unused types, an orphaned component — and the session honestly logged collateral damage: the edit tool mangled three unrelated files mid-sweep, all restored byte-identical from HEAD before committing (<span class="commit">23f0532</span>). The user's alarmed "what did you do to the git history" was answered with evidence: linear history, clean tree, nothing lost.</p>
+<p>A knip-driven sweep removed 312 lines across 18 files — dead exports, unused types, an orphaned component — and the session honestly logged collateral damage: the edit tool mangled three unrelated files mid-sweep, all restored byte-identical from HEAD before committing (<span class="cname">remove dead code</span>). The user's alarmed "wtf did you commited? … what did you just do" got a point-by-point answer: linear history, clean tree, nothing lost, here is the exact diff of the last commit. Trust survived because the receipts existed.</p>
 
-<p>The first Vercel build failure was pure process: <code>lib/recents-data.ts</code> existed locally but was never committed, so the cloud clone couldn't resolve it. Commit <span class="commit">0331dc5</span> captured the pending recents/analytics work. Lesson: local builds prove nothing about what Vercel clones.</p>
+<p>The first Vercel build failure was pure process: <code>lib/recents-data.ts</code> existed locally but was never committed, so the cloud clone couldn't resolve it. Commit <span class="cname">add recents API and analytics; harden production build</span> captured the pending work. Lesson: local builds prove nothing about what Vercel clones.</p>
 
-<h3>12.2 The guard and the localhost leak</h3>
-<p>The second failure came from the HTTPS guard added in <span class="commit">10f7d64</span>: local builds saw <code>VERCEL=1</code> because <code>vercel link</code> had left an OIDC token in <code>.env.local</code>, and <code>.env</code> still said <code>BETTER_AUTH_URL=http://localhost:3000</code>. Commit <span class="commit">5862564</span> relaxed the guard with a localhost regex — and the transcript preserves the assistant talking itself out of it minutes later: <em>"you're right to push back — that's a band-aid, and it weakens a guard you intentionally added."</em> The proper fix (scope the guard to <code>VERCEL_ENV</code> production/preview) landed shortly after among the env-validation changes that rode along with <span class="commit">e5b34de</span>, and stands today.</p>
+<h3>12.2 The guard episode — where the model argued itself straight</h3>
+<p>The second failure came from the HTTPS guard added in <span class="cname">harden Vercel production deployment</span>: local builds saw <code>VERCEL=1</code> because <code>vercel link</code> had left an OIDC token in <code>.env.local</code>, and <code>.env</code> still said <code>BETTER_AUTH_URL=http://localhost:3000</code>. The immediate fix, <span class="cname">allow localhost BETTER_AUTH_URL in Vercel build guard</span>, widened the check with a localhost regex. What makes this episode worth studying is what happened next, inside the same session, unprompted: the assistant re-read its own patch and reversed position — "you're right to push back — that's a band-aid, and it weakens a guard you intentionally added… the real bug was probably <em>why</em> the build was running with VERCEL=1 locally." The proper fix — scope the guard to <code>VERCEL_ENV</code> production/preview — landed shortly after among the validation changes carried in <span class="cname">allow PostHog scripts in CSP</span>, and stands today. Production-report-2.html uses this commit as its Evidence A; the fuller story includes the self-correction.</p>
 
-<h3>12.3 Invalid origin</h3>
-<p>Production login then failed with Better Auth's "Invalid origin." The chain, untangled in <span class="sid">ses_fec04814</span>: the freshly mass-added Vercel variables lacked <code>BETTER_AUTH_TRUSTED_ORIGINS</code> (added), the CSP blocked PostHog's scripts (<span class="commit">e5b34de</span> allowed the host), and — found by probing the worker — its deployed <code>ALLOWED_ORIGINS</code> secret was <code>http://localhost:3000</code> only, rejecting the production origin outright. Fixed and verified with a signed token over HTTP/1.1, after discovering that HTTP/2 silently strips the <code>Upgrade</code> header and turns every probe into a lie. One more trap surfaced when the user asked why <code>/messages</code> 500'd: the Vercel value for <code>NEXT_PUBLIC_WS_URL</code> was literally <code>ws://localhost:3001</code>, copied upward from an old env file, and <code>lib/client-config.ts</code> correctly threw at module evaluation. The codebase contained no localhost; the configuration did. The session declared victory on a curl returning <code>{"ok":true}</code> — the last time that standard would pass.</p>
+<h3>12.3 Invalid origin — four bugs wearing one error message</h3>
+<p>Production login failed with Better Auth's "Invalid origin." The chain, untangled in <span class="sess">Vercel prod invalid origin login error</span>: the freshly mass-added Vercel variables lacked <code>BETTER_AUTH_TRUSTED_ORIGINS</code> (added); the CSP blocked PostHog's scripts (<span class="cname">allow PostHog scripts in CSP</span>); the worker's deployed <code>ALLOWED_ORIGINS</code> secret was <code>http://localhost:3000</code> only, rejecting the production origin outright (fixed and proven with a signed token over HTTP/1.1, after discovering HTTP/2 silently strips the <code>Upgrade</code> header); and finally <code>NEXT_PUBLIC_WS_URL</code> on Vercel was literally <code>ws://localhost:3001</code>, copied upward from an old env file, making <code>lib/client-config.ts</code> throw at module load and 500 the whole <code>/messages</code> page. The codebase contained no localhost; the configuration did. The user's exasperation peaked here — "dude why are there so fucking many localhost in the codebase? fix all of them" — and the honest answer, found by grepping the deployed bundle, was that there weren't any left in code. The session declared victory on a curl returning <code>{"ok":true}</code>. That standard was about to fail its last exam.</p>
 
 <!-- =================================================================== -->
 <h2 id="s13"><a class="hlink" href="#s13">13. Phase 10 — Root cause diagnosis</a></h2>
 
-<p><em>Sessions:</em> <span class="sid">ses_febf8a7d</span> (+ fork <span class="sid">ses_feaac294</span>)</p>
+<p><em>Sessions:</em> <span class="sess">Why AI can't finalize project leaving localhost</span> (208 msgs, 22.73 M tokens, $0.31 at the stats snapshot; grew further with evening work) and its continuation fork (306 msgs final).</p>
 
-<p>Frustrated, the user asked the direct question: <em>why can't the AI finalize this project — why does localhost keep coming back?</em> The answer, produced by reading the project's own session history, is the intellectual core of this report and worth quoting:</p>
+<p>Frustrated, the user asked the direct question: <em>why can't the AI finalize this project — why does localhost keep coming back?</em> The answer, produced by making the agent read its own session history, is the intellectual core of this report:</p>
 
 <blockquote>"The AI treats your local dev environment as the production source of truth, and when prod breaks it patches the code to tolerate localhost instead of reconfiguring the deployed env."</blockquote>
 
 <p>The supporting evidence, each item traceable to a named session or commit:</p>
 <ol>
-  <li><strong>Flash-tier models did the production work.</strong> Every deploy-focused session ran <code>deepseek-v4-flash</code> variants — tuned for fast iteration, inclined to treat a passing build as done, and prone to verifying with curl rather than the product.</li>
-  <li><strong>The guard-relaxation commit.</strong> <span class="commit">5862564</span> widened a production check so the wrong configuration passed, instead of fixing the configuration.</li>
-  <li><strong>Environment sprawl.</strong> <code>.env.prod</code> held a placeholder domain and an empty URL that would crash the client config; <code>.env.vercel</code> held literal <code>[SENSITIVE]</code> strings saved from a masked pull. Every "sync the env" action copied from the local file upward, propagating localhost.</li>
+  <li><strong>Flash-tier models did the production work.</strong> Every deploy-focused session ran deepseek-v4-flash variants — tuned for fast iteration, inclined to treat a passing build as done, prone to verifying with curl rather than the product. The stats export makes the tier split visible: flash models handled 56 of the 74 sessions.</li>
+  <li><strong>The guard-relaxation commit.</strong> <span class="cname">allow localhost BETTER_AUTH_URL in Vercel build guard</span> widened a production check so the wrong configuration passed, instead of fixing the configuration.</li>
+  <li><strong>Environment sprawl.</strong> <code>.env.prod</code> held a placeholder domain and an empty URL that would crash the client config; <code>.env.vercel</code> held literal <code>[SENSITIVE]</code> strings saved from a masked pull. Every "sync the env" action copied from the local file upward, propagating localhost. (The <code>.env.prod</code> creation scene deserves its place in history: the user had to repeat the instruction four times, escalating to "put in the values my god what is wrong," before the file contained anything useful.)</li>
   <li><strong>The repository re-taught localhost every session.</strong> AGENTS.md — injected into every agent's instructions — described Socket.IO on <code>ws://localhost:3001</code> as the realtime design, because that was what the code did. The docs were a faithful carrier of a broken architecture.</li>
   <li><strong>Interruptions counted as completions.</strong> Steps ended with <code>"finish": "error", "Step interrupted"</code>; whole readiness passes survived only as forks, redone from scratch without checkpoints.</li>
 </ol>
+
+<p>The sharpest analytical moment came when the user asked whether stale documentation was "the main culprit… poisoning the context." The answer drew a distinction worth keeping: the docs were <em>a carrier, not the cause</em>. AGENTS.md and DEPLOYMENT.md described reality faithfully; deleting them would have changed nothing. What actually failed was the transport choice plus the verification gap. The one doc that truly did poison context was AGENTS.md itself, because it is injected into every session — and fixing it became part of the cure.</p>
 
 <p>The user proposed the remedy in the same session: scour code and env, fix once, deploy, then verify with browser control and the Vercel CLI — frugally, on the free tier. That plan became the next phase, and it worked.</p>
 
 <!-- =================================================================== -->
 <h2 id="s14"><a class="hlink" href="#s14">14. Phase 11 — The real fix: chat realtime on the worker</a></h2>
 
-<p><em>Sessions:</em> <span class="sid">ses_febf8a7d</span>/<span class="sid">ses_feaac294</span> (continued) · <em>Commits:</em> worker <span class="commit">da0806f</span>; app <span class="commit">534aecc</span>, <span class="commit">8448d78</span>, <span class="commit">cf152ac</span></p>
+<p><em>Sessions:</em> continuation of <span class="sess">Why AI can't finalize project leaving localhost</span> and its fork. <em>Commits:</em> worker — <span class="cname">realtime chat on the worker with Turso persistence</span>; app — <span class="cname">point NEXT_PUBLIC_WS_URL at the realtime worker</span>, <span class="cname">migrate chat realtime from Socket.IO to the Cloudflare worker</span>, <span class="cname">use chat2 room to escape a stale Cloudflare DO instance</span>.</p>
 
 <p>The scour found the blocking defect within minutes: the browser spoke Socket.IO; the deployed worker spoke native WebSocket JSON frames; its chat handler was a stub that broadcast literal pings. Production chat had never had realtime. The REST-plus-polling fallback had absorbed the failure so completely that four days of demos looked healthy.</p>
 
 <h3>14.1 What changed</h3>
 <ul>
-  <li><strong>Worker</strong> (<span class="commit">da0806f</span>): new <code>src/chat.ts</code> mirrors the app's chat data layer as plain SQL over the same Turso database — membership and existence checks, message inserts, conversation and read-marker updates, reaction aggregation, avatar presentation. <code>src/realtime.ts</code> grew real handlers: <code>Connection</code> holds a set of rooms instead of one; joins validate membership and workspace; sends persist then fan out <code>message:new</code>, ack the sender with <code>message:sent</code>, and notify lists via <code>conversations:changed</code>; reactions toggle in Turso and broadcast aggregates; typing excludes the sender. Turso bindings entered <code>wrangler.toml</code> and secrets.</li>
-  <li><strong>Client</strong> (<span class="commit">8448d78</span>): <code>components/chat/chat-socket.ts</code> rewritten around native WebSocket while preserving its entire public API, so no UI call site changed. Token fetched per connection, exponential backoff, and — fixing a latent Socket.IO-era gap — automatic <code>chat:join</code> replay for every known conversation on reconnect. The Socket.IO server, dependencies, npm script, and compose service were deleted. Documentation was corrected at the source: AGENTS.md stopped teaching the localhost architecture.</li>
+  <li><strong>Worker</strong> (<span class="cname">realtime chat on the worker with Turso persistence</span>): new <code>src/chat.ts</code> mirrors the app's chat data layer as plain SQL over the same Turso database — membership and existence checks, message inserts, conversation and read-marker updates, reaction aggregation, avatar presentation. <code>src/realtime.ts</code> grew real handlers: connections hold a set of rooms instead of one; joins validate membership and workspace; sends persist then fan out <code>message:new</code>, ack the sender with <code>message:sent</code>, and notify lists via <code>conversations:changed</code>; reactions toggle in Turso and broadcast aggregates; typing excludes the sender. Turso bindings entered <code>wrangler.toml</code> and secrets.</li>
+  <li><strong>Client</strong> (<span class="cname">migrate chat realtime from Socket.IO to the Cloudflare worker</span>): <code>components/chat/chat-socket.ts</code> rewritten around native WebSocket while preserving its entire public API, so no UI call site changed. Token fetched per connection, exponential backoff, and — fixing a latent Socket.IO-era gap — automatic <code>chat:join</code> replay for every known conversation on reconnect. The Socket.IO server, dependencies, npm script, and compose service were deleted. Documentation was corrected at the source: AGENTS.md stopped teaching the localhost architecture.</li>
   <li><strong>Env hygiene</strong>: <code>.env.prod</code> and <code>.env.vercel</code> deleted; <code>BETTER_AUTH_TRUSTED_ORIGINS</code> restored for local login; Vercel dashboard declared the single source of production truth.</li>
 </ul>
 
 <h3>14.2 Ship sequence and the stale instance</h3>
-<p>Order mattered: worker first, app second, one CLI production deploy per batch. The first browser test then produced the day's finest debugging moment — the socket connected, frames went out, nothing came back, nothing persisted. A probe against a never-used room name answered instantly with new-code behavior; the old <code>chat</code> room stayed silent even for the stub's echo. Conclusion: Cloudflare keeps a Durable Object instance on the code that created it, for up to thirty days. A migration to destroy instances proved forbidden in a single step, so the surgical fix won: bump the room name. <span class="commit">cf152ac</span> moved clients to <code>?room=chat2</code>, the redeploy landed, and the same test passed end-to-end.</p>
+<p>Order mattered: worker first, app second, one CLI production deploy per batch. The first browser test then produced the day's finest debugging moment — the socket connected, frames went out, nothing came back, nothing persisted. A probe against a never-used room name answered instantly with new-code behavior; the old <code>chat</code> room stayed silent even for the stub's echo. Conclusion: Cloudflare keeps a Durable Object instance on the code that created it, for up to thirty days. A destroy-and-recreate migration proved forbidden in a single step, so the surgical fix won: bump the room name. <span class="cname">use chat2 room to escape a stale Cloudflare DO instance</span> moved clients to <code>?room=chat2</code>, the redeploy landed, and the same test passed end-to-end. production-report-2.html's section 8 is the definitive write-up of this discovery.</p>
 
 <h3>14.3 Proof, not claims</h3>
 <p>An init script wrapped <code>window.WebSocket</code> before app bundles ran and logged every frame. Against the live site it captured the full loop: <code>chat:join</code> out, <code>typing</code> out, <code>message:send</code> out; <code>message:new</code>, <code>message:sent</code>, <code>conversations:changed</code> back; the message still present after reload; a reaction toggled into Turso and aggregated back; two sockets in one conversation exchanging a broadcast; handshake gates returning 401 for bad tokens, 101 for valid ones, 403 for wrong or missing origins. Test artifacts were deleted from Turso afterward. For the first time in the project's history, chat realtime was proven in production — and the method, not just the result, went into the repo's institutional memory.</p>
@@ -616,18 +635,18 @@
 <!-- =================================================================== -->
 <h2 id="s15"><a class="hlink" href="#s15">15. Phase 12 — Evening hardening</a></h2>
 
-<p><em>Sessions:</em> <span class="sid">ses_feaac294</span> (evening portion), <span class="sid">ses_fea56ad9</span> · <em>Commits:</em> worker <span class="commit">78bed4b</span>, <span class="commit">d5669b9</span>; app <span class="commit">62cae06</span>, <span class="commit">a19ff48</span>, <span class="commit">9a1155c</span>, <span class="commit">3d99e17</span>, <span class="commit">bcdd083</span>, <span class="commit">b1c0b24</span></p>
+<p><em>Sessions:</em> the continuation fork of <span class="sess">Why AI can't finalize project leaving localhost</span> (evening portion) and <span class="sess">Content index styling fix in PRODUCTION_REPORT.html</span>. <em>Commits:</em> worker — <span class="cname">heartbeat pings to keep idle sockets alive</span>, <span class="cname">AGENTS.md for the realtime worker</span>; app — <span class="cname">staleness watchdog on chat/meeting/call sockets</span>, <span class="cname">version meeting and call rooms to fresh DO instances</span>, <span class="cname">complete AGENTS.md and DEPLOYMENT.md; add handoff document</span>, <span class="cname">add extensive production finalization report</span>, <span class="cname">add fix-and-ship workflow and Vercel CLI usage to production report</span>, <span class="cname">style table of contents as a card</span>.</p>
 
-<p>The user reported the next production bug from two devices: joining the same meeting showed no one else, ever. The investigation reproduced it live — two tabs, minutes apart, each seeing an empty room — while raw two-socket probes against the same meeting ID worked. Wire logs caught the cause: abnormal closes with code 1006 after silence. Cloudflare infrastructure drops idle WebSocket connections after roughly sixty to ninety seconds without a frame; nothing in the system ever pinged, so a device sitting alone in a meeting lost its socket invisibly, and <em>the room emptied server-side while the screen still said connected</em>.</p>
+<p>The user reported the next production bug live, from two devices: "i cant see other people… only that account appears in the meeting." The investigation reproduced it — two tabs, minutes apart, each seeing an empty room — while raw two-socket probes against the same meeting ID worked. Wire logs caught the cause: abnormal closes with code 1006 after silence. Cloudflare infrastructure drops idle WebSocket connections after roughly sixty to ninety seconds without a frame; nothing in the system ever pinged, so a device sitting alone in a meeting lost its socket invisibly, and <em>the room emptied server-side while the screen still said connected</em>.</p>
 
-<p>Three fixes shipped as one batch:</p>
+<p>The debugging discipline here was textbook control experimentation: raw probes passed (server logic fine), tabs joining seconds apart passed (UI flow fine), tabs minutes apart failed (timing-dependent), close codes examined (1006, abnormal), heartbeats checked (none anywhere). Three fixes shipped as one batch:</p>
 <ul>
-  <li><span class="commit">78bed4b</span> — the worker pings every socket every 20 seconds, so no connection ever looks idle.</li>
-  <li><span class="commit">62cae06</span> — every chat, meeting, and call socket gains a staleness watchdog: 45 seconds of silence force-closes and reconnects, with rejoin.</li>
-  <li><span class="commit">a19ff48</span> — meeting and call rooms renamed to <code>meeting:v2:</code> and <code>call:v2:</code>, because the existing instances still ran pre-heartbeat code — the same thirty-day pinning that bit chat.</li>
+  <li><span class="cname">heartbeat pings to keep idle sockets alive</span> — the worker pings every socket every 20 seconds, so no connection ever looks idle.</li>
+  <li><span class="cname">staleness watchdog on chat/meeting/call sockets</span> — clients force-close and reconnect after 45 seconds of silence, with rejoin.</li>
+  <li><span class="cname">version meeting and call rooms to fresh DO instances</span> — rooms renamed to <code>meeting:v2:</code> and <code>call:v2:</code>, because existing instances still ran pre-heartbeat code: the same thirty-day pinning that bit chat, now anticipated instead of discovered.</li>
 </ul>
 
-<p>The retest joined the user's live meeting, idled ninety seconds, counted sixteen pings and zero closes, then watched a second tab join and both show two participants. The day closed with documentation debt paid: AGENTS.md and DEPLOYMENT.md completed with real values, a HANDOFF.md added, and the worker repo given its own AGENTS.md. The production finalization report was committed, expanded with the ship sequence, and styled — the direct ancestor of the document you are reading.</p>
+<p>The retest joined the user's live meeting, idled ninety seconds, counted sixteen pings and zero closes, then watched a second tab join and both show two participants. Two process slips happened and were fixed in-flight: a <code>git add -A</code> briefly swept the user's unrelated stats report into a commit (unstaged and recommitted cleanly), and Vercel CLI auth expired mid-deploy (re-authenticated). The day closed with documentation debt paid — AGENTS.md and DEPLOYMENT.md completed with real values, HANDOFF.md added, the worker repo given its own AGENTS.md — and with the finalization report committed, expanded with the ship sequence, and styled. That report is the direct ancestor of the document you are reading.</p>
 
 <!-- =================================================================== -->
 <h2 id="s16"><a class="hlink" href="#s16">16. Architecture as shipped</a></h2>
@@ -676,31 +695,74 @@
 <h2 id="s17"><a class="hlink" href="#s17">17. Decision log</a></h2>
 
 <table>
-  <tr><th>Decision</th><th>Driver</th><th>Evidence</th><th>Trade-off accepted</th></tr>
-  <tr><td>Bun-only toolchain, Biome lint, React Compiler on</td><td>Speed; compiler handles memoization</td><td><span class="commit">2c239d8</span>, AGENTS.md</td><td>No manual <code>useMemo</code>; Biome a11y rules are strict</td></tr>
-  <tr><td>Linear-inspired light-only design; translate tokens, don't copy</td><td>User taste; usability on the web</td><td><span class="sid">ses_ffbac1a0</span></td><td>Ongoing pixel-level polish requests</td></tr>
-  <tr><td>Route-group refactor with byte-identical UI constraint</td><td>Chat needed real routes; churn risk high</td><td><span class="sid">ses_ffb87c03</span>, <span class="commit">a7765a9</span></td><td>Slower refactor; mechanical drift audit required</td></tr>
-  <tr><td>Parallel subagents per phase with explicit contracts</td><td>Throughput on day 1</td><td><span class="sid">ses_ffb916ef</span></td><td>Mid-edit collisions; stale typechecks</td></tr>
-  <tr><td>Socket.IO locally first</td><td>Fastest path to realtime</td><td><span class="sid">ses_ffb81d91</span></td><td>Protocol unusable in production — paid for on day 4</td></tr>
-  <tr><td>Free-tier stack: Vercel + Turso + UploadThing + Workers DO</td><td>$0 budget</td><td><span class="sid">ses_ffa9aa89</span>, <span class="sid">ses_ff89fd7b</span></td><td>Hobby limits; Sensitive env masking; quota ceilings</td></tr>
-  <tr><td>Separate worker repo</td><td>Different runtime, deploy path, and secrets</td><td><span class="sid">ses_ff95b1a1</span>, <span class="commit">5ee6df0</span></td><td>Contract sync discipline between repos</td></tr>
+  <tr><th>Decision</th><th>Driver</th><th>Evidence (session → commit)</th><th>Trade-off accepted</th></tr>
+  <tr><td>Bun-only toolchain, Biome lint, React Compiler on</td><td>Speed; compiler handles memoization</td><td><span class="sess">Full stack setup…</span> → <span class="cname">first commit</span>, AGENTS.md</td><td>No manual <code>useMemo</code>; Biome a11y rules are strict</td></tr>
+  <tr><td>Linear-inspired light-only design; translate tokens, don't copy</td><td>User taste; usability on the web</td><td><span class="sess">Cloud Workspace UI Components</span></td><td>Ongoing pixel-level polish requests</td></tr>
+  <tr><td>Route-group refactor with byte-identical UI constraint</td><td>Chat needed real routes; churn risk high</td><td><span class="sess">Route the app by feature</span> → <span class="cname">new stuff</span></td><td>Slower refactor; mechanical drift audit required</td></tr>
+  <tr><td>Parallel subagents per phase with explicit contracts</td><td>Throughput on day 1</td><td><span class="sess">Full-fledged chat feature development (fork #1)</span></td><td>Mid-edit collisions; stale typechecks</td></tr>
+  <tr><td>Socket.IO locally first</td><td>Fastest path to realtime</td><td><span class="sess">WebSocket chat server</span></td><td>Protocol unusable in production — paid for on day 4</td></tr>
+  <tr><td>Free-tier stack: Vercel + Turso + UploadThing + Workers DO</td><td>$0 budget</td><td><span class="sess">Free deploy: Turso, UploadThing…</span> → <span class="cname">Deployment plan: Turso, UploadThing, WebSockets</span></td><td>Hobby limits; Sensitive env masking; quota ceilings</td></tr>
+  <tr><td>Separate worker repo</td><td>Different runtime, deploy path, and secrets</td><td>user question in <span class="sess">Production readiness…</span> → <span class="cname">scaffold Cloudflare realtime worker…</span></td><td>Contract-sync discipline between repos</td></tr>
   <tr><td>Token-authenticated sockets instead of cookies</td><td>Cookie domain mismatch Vercel↔Workers</td><td>worker scaffold sessions</td><td>Token endpoint + shared secret to keep in sync</td></tr>
-  <tr><td>Hibernation API for the DO</td><td>Idle connections must be free</td><td><span class="sid">ses_ff8a3774</span></td><td>In-memory state rebuilds on wake; attachments for session state</td></tr>
-  <tr><td>Migrations run at deploy start, failing the release on error</td><td>No uncontrolled schema drift</td><td><span class="commit">3699dd7</span></td><td>A bad migration blocks shipping</td></tr>
-  <tr><td>Ephemeral calls distinct from persistent meetings</td><td>Different lifecycles, different UX</td><td><span class="sid">ses_ff63f124</span>, <span class="commit">d504530</span></td><td>Two socket protocols, two cleanup paths</td></tr>
+  <tr><td>Hibernation API for the DO</td><td>Idle connections must be free</td><td><span class="sess">Durable Objects WS spec</span></td><td>In-memory state rebuilds on wake; attachments for session state</td></tr>
+  <tr><td>Migrations run at deploy start, failing the release on error</td><td>No uncontrolled schema drift</td><td><span class="cname">fail fast without prod DB URL…</span></td><td>A bad migration blocks shipping</td></tr>
+  <tr><td>Ephemeral calls distinct from persistent meetings</td><td>Different lifecycles, different UX</td><td><span class="sess">Add call option on calls page and chat</span> → <span class="cname">calls that end when hung up</span></td><td>Two socket protocols, two cleanup paths</td></tr>
   <tr><td>Heartbeat sweep inside <code>listCalls</code> (90 s)</td><td>Calls must die when abandoned</td><td>calls sessions</td><td>Sweep cost on every list read</td></tr>
-  <tr><td>Room-name versioning over DO migrations (<code>chat2</code>, <code>v2:</code>)</td><td>Thirty-day instance pinning; single-step destroy forbidden</td><td><span class="commit">cf152ac</span>, <span class="commit">a19ff48</span></td><td>Old rooms orphaned; names carry versions forever</td></tr>
-  <tr><td>Vercel dashboard as the only production env source; trap files deleted</td><td>Stop localhost propagation</td><td><span class="sid">ses_febf8a7d</span></td><td>Local <code>.env</code> intentionally diverges (localhost trusted origin)</td></tr>
-  <tr><td>Verify production in an instrumented browser, not curl</td><td>Every premature "done" traced to endpoint-only checks</td><td><span class="sid">ses_febf8a7d</span>, PRODUCTION_REPORT postscript</td><td>More effort per change; occasional adblocker noise</td></tr>
-  <tr><td>WebRTC mesh without TURN</td><td>$0; demo scale</td><td><span class="sid">ses_ffa9aa89</span></td><td>Symmetric-NAT pairs fail; large groups degrade</td></tr>
+  <tr><td>Room-name versioning over DO migrations (<code>chat2</code>, <code>v2:</code>)</td><td>Thirty-day instance pinning; single-step destroy forbidden</td><td><span class="cname">use chat2 room…</span>, <span class="cname">version meeting and call rooms…</span></td><td>Old rooms orphaned; names carry versions forever</td></tr>
+  <tr><td>Vercel dashboard as the only production env source; trap files deleted</td><td>Stop localhost propagation</td><td><span class="sess">Why AI can't finalize…</span></td><td>Local <code>.env</code> intentionally diverges (localhost trusted origin)</td></tr>
+  <tr><td>Verify production in an instrumented browser, not curl</td><td>Every premature "done" traced to endpoint-only checks</td><td><span class="sess">Why AI can't finalize…</span>; production-report-2.html postscript</td><td>More effort per change; occasional adblocker noise</td></tr>
+  <tr><td>WebRTC mesh without TURN</td><td>$0; demo scale</td><td><span class="sess">Free deploy…</span> discussion</td><td>Symmetric-NAT pairs fail; large groups degrade</td></tr>
 </table>
 
 <!-- =================================================================== -->
-<h2 id="s18"><a class="hlink" href="#s18">18. Failure patterns and lessons</a></h2>
+<h2 id="s18"><a class="hlink" href="#s18">18. Easy, hard, and the debates</a></h2>
 
-<h3>18.1 Patterns that repeatedly caused trouble</h3>
+<h3>18.1 What was easy</h3>
+<ul>
+  <li><strong>Foundation and scaffolding.</strong> The five-minute <span class="sess">Full stack setup…</span> session never needed a follow-up. Version quirks were caught and documented on first contact.</li>
+  <li><strong>Layered feature subagents.</strong> The chat REST, WS-server, and DB subagents finished green on first passes, in minutes of active time each, inside tight directory boundaries. Same for <span class="sess">PostHog setup for app</span> — installed, masked, identified, browser-verified in half an hour.</li>
+  <li><strong>Swaps with clear targets.</strong> lucide→PixelArticons, Inter→Schibsted/Hanken, the storage-pill UI, LAN-origin hydration fix: each a single session, minimal churn.</li>
+  <li><strong>Mechanical refactors under tight contracts.</strong> The 1,962-line shell split preserved every className byte-for-byte because the spec demanded it and a diff script enforced it.</li>
+</ul>
+
+<h3>18.2 What was hard</h3>
+<ul>
+  <li><strong>Anything touching shared state while siblings ran.</strong> The task-manager session matched the production orchestrator in size (301 messages) largely because of concurrent-edit turbulence and the migration-journal corruption it had to dig out of. The uploads session (279 messages, 5½-hour span) fought the same wind.</li>
+  <li><strong>Production configuration truth.</strong> Four sessions over two days chased the invalid-origin family: trusted origins, CSP, worker origin allowlist, inlined-public-URL values. Each fix was correct; the loop only closed when the <em>source</em> of values moved to one place.</li>
+  <li><strong>Invisible infrastructure behavior.</strong> The stale Durable Object (silent room) and idle-socket drops (invisible meeting exits) were neither code nor config bugs — the system's platform behaved in ways nothing locally could reveal. Both fell to wire-level evidence: probe rooms, close codes 1006, ping counters.</li>
+  <li><strong>Camera/video truths.</strong> Three wrong-or-partial theories before the truth (stream attached too early; then the "camera" was the automation browser's synthetic device). Hardware debugging through an agent requires checking the physical layer, not just the DOM.</li>
+  <li><strong>Long-running features across interruptions.</strong> Calls was aborted once, resumed the next day, hit the wrong-target-migration 500, and still shipped coherent. The orchestrator readiness pass needed two forks. The framework's resume mechanics held, but momentum cost was real.</li>
+</ul>
+
+<h3>18.3 Where the user had to steer hard</h3>
+<ul>
+  <li><strong>Taste loops.</strong> Favicon: six rejections before the user demanded a 20-variant gallery and picked one themselves. Sidebar live-green tint: restored only after the agent mined its own earlier sessions for the previous value. Heading font: a Chivo experiment was reverted the same night. Landing-nav backdrop: three screenshot rounds.</li>
+  <li><strong>Instruction clarity under frustration.</strong> The <code>.env.prod</code> creation took four escalating prompts; the dead-code commit scare took a full forensic walkthrough to settle. Both ended well, but both cost patience that better defaults (never create scratch env files; never sweep <code>git add -A</code>) would have saved — both rules are now in AGENTS.md.</li>
+  <li><strong>Asking "why", repeatedly.</strong> The project's best artifacts — the root-cause diagnosis, the guard reversal, the docs-as-carrier distinction — exist because the user refused to accept "fixed" and asked for the mechanism. The single highest-leverage habit in the whole history.</li>
+</ul>
+
+<h3>18.4 Where the model exceeded the ask</h3>
+<ul>
+  <li>Self-review catches nobody requested: the echo-duplication pending-send swap, the fetch/socket merge race, the WebRTC glare deadlock, two chat sync gaps, the className drift audit script.</li>
+  <li>Honesty under pressure: restoring mangled files byte-identically before committing and saying so; reversing its own guard patch within minutes; admitting the first backfill "hadn't actually happened"; flagging its own probe logging as truncated rather than blaming the system.</li>
+  <li>Evidence-first debugging: the fresh-room probe that convicted the stale DO; the control-experiment ladder that convicted idle drops; frame-level camera checks that acquitted the code.</li>
+</ul>
+
+<h3>18.5 Discussions and reasoning worth keeping</h3>
+<ul>
+  <li><strong>The phone-book analogy</strong> (<span class="sess">Free deploy: Turso, UploadThing, Vercel, Workers</span>): media is P2P, signaling is discovery; Cloudflare fronts the handshake, never the video — which is also why the whole realtime stack stays free.</li>
+  <li><strong>Hibernation economics</strong> (<span class="sess">Durable Objects WS spec</span>): accept-vs-hibernate, 32,768 sockets per object, auto-response ping/pong pairs that answer without waking the object, and the deploy warning that foreshadowed both day-4 incidents.</li>
+  <li><strong>Mesh vs SFU honesty</strong>: group calls degrade past a handful of peers; real products exist largely to solve TURN and SFU, not the hello-world call.</li>
+  <li><strong>"Docs were a carrier, not the cause"</strong> (<span class="sess">Why AI can't finalize…</span>): faithful documentation of a broken architecture still teaches the break forward when injected into every future session — hence AGENTS.md was rewritten in the same change as reality.</li>
+  <li><strong>Option A vs Option B</strong>: ship without realtime (chat polls, calls dead) versus port to Workers. The project effectively lived Option A for three days without knowing, then chose B decisively once the evidence forced a look.</li>
+</ul>
+
+<!-- =================================================================== -->
+<h2 id="s19"><a class="hlink" href="#s19">19. Failure patterns and lessons</a></h2>
+
+<h3>19.1 Patterns that repeatedly caused trouble</h3>
 <ol>
-  <li><strong>Localhost as source of truth.</strong> The guard relaxation (<span class="commit">5862564</span>), the worker's localhost-only <code>ALLOWED_ORIGINS</code>, and <code>NEXT_PUBLIC_WS_URL=ws://localhost:3001</code> on Vercel were one failure wearing three outfits. The durable fix was architectural, not per-bug: one place holds production truth, and eager validation throws on divergence.</li>
+  <li><strong>Localhost as source of truth.</strong> The guard relaxation, the worker's localhost-only <code>ALLOWED_ORIGINS</code>, and <code>NEXT_PUBLIC_WS_URL=ws://localhost:3001</code> on Vercel were one failure wearing three outfits. The durable fix was architectural, not per-bug: one place holds production truth, and eager validation throws on divergence.</li>
   <li><strong>Verification theater.</strong> Curl status codes, <code>{"ok":true}</code>, and passing builds stood in for product behavior. The realtime defect survived four days precisely because no check exercised it. Instrumented browsers closed the gap permanently.</li>
   <li><strong>Fallbacks that mask failure.</strong> REST polling made dead realtime invisible. Resilience is valuable, but a fallback should surface degradation somewhere observable, not swallow it.</li>
   <li><strong>Context poisoning through docs.</strong> AGENTS.md faithfully described the broken design into every future session's instructions. Documentation must be corrected in the same change that corrects reality, or it teaches the mistake forward.</li>
@@ -709,16 +771,16 @@
   <li><strong>Interrupted work counted as done.</strong> Aborted steps and forked readiness passes left no memory between attempts. The handoff-document habit (HANDOFF.md, worker AGENTS.md) is the antidote the project adopted.</li>
 </ol>
 
-<h3>18.2 What worked, and should be credited</h3>
+<h3>19.2 What worked, and should be credited</h3>
 <ul>
   <li>Strict static gates on every change: <code>tsc --noEmit</code>, Biome, production builds. They caught hundreds of issues before runtime.</li>
   <li>The orchestrator-plus-subagents pattern with disjoint directories and written contracts produced a shocking amount of correct software quickly.</li>
-  <li>Optimistic-UI correctness details — pending-send swaps, merge-not-replace fetch races, glare-free WebRTC negotiation — show review passes catching real distributed-systems bugs, not just typos.</li>
-  <li>Honest transcripts. The most valuable artifact of the whole project may be <span class="sid">ses_febf8a7d</span>'s willingness to diagnose itself, name the band-aid in <span class="commit">5862564</span>, and replace it with a principled guard.</li>
+  <li>Optimistic-UI correctness details — pending-send swaps, merge-not-replace fetch races, glare-free negotiation — show review passes catching real distributed-systems bugs, not just typos.</li>
+  <li>Honest transcripts. The most valuable artifact of the whole project may be <span class="sess">Why AI can't finalize project leaving localhost</span>'s willingness to diagnose itself, name the band-aid in <span class="cname">allow localhost BETTER_AUTH_URL in Vercel build guard</span>, and replace it with a principled guard.</li>
 </ul>
 
 <!-- =================================================================== -->
-<h2 id="s19"><a class="hlink" href="#s19">19. Codebase statistics</a></h2>
+<h2 id="s20"><a class="hlink" href="#s20">20. Codebase statistics</a></h2>
 
 <table>
   <tr><th>Measure</th><th>App repo</th><th>Worker repo</th></tr>
@@ -730,32 +792,47 @@
   <tr><td>Removed along the way</td><td>socket.io + socket.io-client, <code>ws/server.ts</code>, lucide-react, filesystem uploads, <code>.env.prod</code>/<code>.env.vercel</code></td><td>—</td></tr>
 </table>
 
-<p>Session activity by day (messages, thousands of input tokens): Aug 15 — 35 sessions, 119 user / 2,374 assistant messages, 3.2M in · Aug 16 — 20 sessions, 52 / 668, 1.4M · Aug 17 — 10 sessions, 38 / 406, 1.5M · Aug 18 — 15 sessions, 85 / 979, 2.8M. Model mix across all assistant messages: deepseek-v4-flash 2,237 · deepseek-v4-flash-free 1,370 · gpt-5.6-luna 452 · deepseek-v4-pro 248 · glm-5.3 107 · ox-alpha-free 56 · mimo-v2.5 9 · kimi-k2.7-code 4.</p>
+<h3>Where the effort actually went</h3>
+<p>Ranked by tokens consumed (per the August 18 statistics export; evening work after 15:27 is not in those counts):</p>
+<table>
+  <tr><th>#</th><th>Session</th><th>Msgs</th><th>Tokens</th><th>Cost</th><th>Verdict</th><th>Main deliverable</th></tr>
+  <tr><td>1</td><td><span class="sess">Production readiness and dead code cleanup</span> (+2 forks)</td><td>301</td><td>63.25 M</td><td>$1.2966</td><td><span class="badge ok">Pass</span> after forks</td><td>The deployment plan, audits, and eventually the fix itself</td></tr>
+  <tr><td>2</td><td><span class="sess">Task manager with list, calendar, todo, timeline</span></td><td>301</td><td>42.49 M</td><td>$0.3906</td><td><span class="badge ok">Pass</span></td><td>Tasks + reminders + mentions amid concurrency storms</td></tr>
+  <tr><td>3</td><td><span class="sess">Upload feature for images, files, docs</span></td><td>279</td><td>40.26 M</td><td>$0.0861</td><td><span class="badge ok">Pass</span></td><td>Files/folders/lightbox/glyphs</td></tr>
+  <tr><td>4</td><td><span class="sess">Add call option on calls page and chat</span></td><td>164</td><td>24.05 M</td><td>$0.1766</td><td><span class="badge warn">Aborted</span>, resumed</td><td>Ephemeral calls end-to-end</td></tr>
+  <tr><td>5</td><td><span class="sess">Why AI can't finalize project leaving localhost</span> (+fork)</td><td>208→541*</td><td>22.73 M+</td><td>$0.3121+</td><td><span class="badge ok">Pass</span></td><td>Root cause + the real fix + hardening</td></tr>
+  <tr><td>6</td><td><span class="sess">Workspace data isolation and admin management</span></td><td>150</td><td>20.65 M</td><td>$0.1986</td><td><span class="badge ok">Pass</span></td><td>Multi-tenancy with live adversarial tests</td></tr>
+  <tr><td>7</td><td><span class="sess">Fix video calling after WS migration</span></td><td>184</td><td>20.59 M</td><td>$0.1931</td><td><span class="badge ok">Pass</span></td><td>Meetings on the worker; camera attach fix</td></tr>
+  <tr><td>8</td><td><span class="sess">What to put on home page for logged-in accounts</span></td><td>198</td><td>18.41 M</td><td>$0.0492</td><td><span class="badge ok">Pass</span></td><td>Home redesign via interview-first flow</td></tr>
+  <tr><td>9</td><td><span class="sess">Fill chat area; remove New message and Messages</span></td><td>175</td><td>17.41 M</td><td>$0.3059</td><td><span class="badge ok">Pass</span></td><td>Chat layout maturity (deepseek-v4-pro)</td></tr>
+  <tr><td>10</td><td><span class="sess">Meetings page with admin controls and notes</span></td><td>158</td><td>14.31 M</td><td>$0.0378</td><td><span class="badge ok">Pass</span></td><td>Meetings admin + sidebar liveness</td></tr>
+</table>
+<p class="small">* Combined final message counts across the session and its continuation fork, from the session database. Token/cost figures are the export's snapshot; the evening hardening work is additional. Model mix across all assistant messages: deepseek-v4-flash 2,237 · deepseek-v4-flash-free 1,370 · gpt-5.6-luna 452 · deepseek-v4-pro 248 · glm-5.3 107 · mimo-v2.5 9 · kimi-k2.7 4 · others (this report) 56+. Day curve: Aug 15 — 33 sessions, 3.2 M input tokens · Aug 16 — 19 sessions, 1.4 M · Aug 17 — 5+, 1.5 M · Aug 18 — 11+, 2.8 M.</p>
 
 <!-- =================================================================== -->
-<h2 id="s20"><a class="hlink" href="#s20">20. Current state and what remains</a></h2>
+<h2 id="s21"><a class="hlink" href="#s21">21. Current state and what remains</a></h2>
 
-<h3>20.1 Live right now</h3>
+<h3>21.1 Live right now</h3>
 <ul>
-  <li>App at <code>https://cloud-workspace-nine.vercel.app</code>, built from <code>dev</code>; local branch is one commit ahead (<span class="commit">b1c0b24</span>, TOC styling) awaiting push.</li>
-  <li>Worker at <code>https://cloud-workspace-realtime.samarth07nagar.workers.dev</code> running <span class="commit">78bed4b</span> with heartbeats.</li>
+  <li>App at <code>https://cloud-workspace-nine.vercel.app</code>, built from <code>dev</code>; local branch carries the report commits awaiting push.</li>
+  <li>Worker at <code>https://cloud-workspace-realtime.samarth07nagar.workers.dev</code> running with heartbeats.</li>
   <li>Chat realtime, reactions, presence-driven unread badges, calls lifecycle, and meeting presence all verified against production with wire-level evidence.</li>
   <li>Documentation current: AGENTS.md, DEPLOYMENT.md, HANDOFF.md, worker AGENTS.md.</li>
 </ul>
 
-<h3>20.2 Known gaps and honest caveats</h3>
+<h3>21.2 Known gaps and honest caveats</h3>
 <table>
   <tr><th>Area</th><th>Status</th><th>Note</th></tr>
   <tr><td>Signed-out OAuth login on prod</td><td><span class="badge warn">Re-verify after push</span></td><td>Fixed via trusted origins; the final confirmation pass from a clean tab was left as a handoff action.</td></tr>
   <tr><td>Two-device WebRTC media (full A/V path)</td><td><span class="badge warn">Partially exercised</span></td><td>Presence and signaling proven; a true two-browser media session remains the gold-standard test.</td></tr>
   <tr><td>TURN relay</td><td><span class="badge warn">Absent</span></td><td>STUN-only mesh; symmetric NAT pairs will fail to connect. Acceptable at demo scale, documented as such.</td></tr>
   <tr><td>Mesh group-call ceiling</td><td><span class="badge warn">Structural</span></td><td>Each client uploads N−1 streams; beyond a handful of peers an SFU would be required (not free).</td></tr>
-  <tr><td>Notification table</td><td><span class="badge warn">Write-only</span></td><td>Mentions/assignments write rows; the read path was removed as dead code in <span class="commit">23f0532</span>. Drop or revive.</td></tr>
+  <tr><td>Notification table</td><td><span class="badge warn">Write-only</span></td><td>Mentions/assignments write rows; the read path was removed as dead code in <span class="cname">remove dead code</span>. Drop or revive.</td></tr>
   <tr><td>Abuse controls</td><td><span class="badge warn">Minimal</span></td><td>No rate limiting or email verification; demo credentials remain by design for a demo. Required before any public opening.</td></tr>
   <tr><td>Free-tier ceilings</td><td><span class="badge ok">Documented</span></td><td>Vercel Hobby non-commercial terms, Turso/UploadThing/Workers quotas — fine for a portfolio, revisit if it grows.</td></tr>
 </table>
 
-<h3>20.3 Recommended next actions</h3>
+<h3>21.3 Recommended next actions</h3>
 <ol>
   <li>Push <code>dev</code> so GitHub, the Vercel-linked project, and the deployed alias all carry the same code.</li>
   <li>From a signed-out tab, exercise Google and GitHub OAuth end-to-end on the live site.</li>
@@ -765,125 +842,132 @@
 </ol>
 
 <!-- =================================================================== -->
-<h2 id="s21"><a class="hlink" href="#s21">21. Appendix A — Session index</a></h2>
+<h2 id="s22"><a class="hlink" href="#s22">22. Appendix A — Session index with effort</a></h2>
 
-<p>Every session that shaped the project, grouped by day. Message counts include user and assistant messages.</p>
+<p>Major sessions in order, with effort figures from the August 18 statistics export (tokens = input+output+cache; evening work after 15:27 not reflected). Verdicts grade how the session <em>ended</em>, not the quality of its output — see the branding session below.</p>
 
 <h3>August 15 — foundation and buildout</h3>
 <table>
-  <tr><th>Session</th><th>Title</th><th>Msgs</th><th>Outcome</th></tr>
-  <tr><td><span class="sid">ses_ffbb808a</span></td><td>Full stack setup Drizzle Better Auth Docker shadcn</td><td>62</td><td>Foundation; AGENTS.md v1</td></tr>
-  <tr><td><span class="sid">ses_ffbac1a0</span></td><td>Cloud Workspace UI Components</td><td>78</td><td>Workspace shell + Linear-style system</td></tr>
-  <tr><td><span class="sid">ses_ffb9c958</span></td><td>Simplifying UI/UX across features</td><td>50</td><td>Navigation unified; dead UX removed; browser-verified</td></tr>
-  <tr><td><span class="sid">ses_ffb9ba50</span> → <span class="sid">ses_ffb916ef</span></td><td>Full-fledged chat development (+fork)</td><td>120</td><td>Orchestrated chat: routing, DB, REST, WS, UI</td></tr>
-  <tr><td><span class="sid">ses_ffb87c02</span>/<span class="sid">ses_ffb81d92</span>/<span class="sid">ses_ffb81d91</span>/<span class="sid">ses_ffb7d1df</span></td><td>Chat subagents (DB / REST / WS / UI)</td><td>148</td><td>Layered chat implementation with reports</td></tr>
-  <tr><td><span class="sid">ses_ffaf9745</span></td><td>Task manager</td><td>301</td><td>Tasks + mentions/reminders; migration-journal incident</td></tr>
-  <tr><td><span class="sid">ses_ffaf74af</span></td><td>Meeting feature and video call interface</td><td>134</td><td>WebRTC mesh; glare fix</td></tr>
-  <tr><td><span class="sid">ses_ffaf29b3</span></td><td>Upload feature</td><td>279</td><td>Files, folders, lightbox, glyph icons</td></tr>
-  <tr><td><span class="sid">ses_ffae8cc5</span></td><td>Signup/signin page with auth and mock data</td><td>116</td><td>Demo accounts (later flagged in audit)</td></tr>
-  <tr><td><span class="sid">ses_ffae7762</span></td><td>Workspace data isolation and admin management</td><td>150</td><td>Multi-tenancy; roles; settings; isolation verified</td></tr>
-  <tr><td><span class="sid">ses_ffa94984</span></td><td>bun run ws not working</td><td>87</td><td>Ghost-session diagnosis; data cleanup</td></tr>
-  <tr><td><span class="sid">ses_ff95b1a1</span></td><td>Production readiness and dead code cleanup</td><td>301</td><td>Deployment plan; audits; interrupted → forked</td></tr>
-  <tr><td>others (landing, home, meetings admin, sidebar, responsive, docker…)</td><td>—</td><td>—</td><td>Product polish across surfaces</td></tr>
+  <tr><th>Session</th><th>Msgs</th><th>Tokens</th><th>Cost</th><th>Verdict</th><th>Produced</th></tr>
+  <tr><td><span class="sess">Full stack setup Drizzle Better Auth Docker shadcn</span></td><td>62</td><td>1.43 M</td><td>$0</td><td><span class="badge ok">Pass</span></td><td><span class="cname">first commit</span>; AGENTS.md v1</td></tr>
+  <tr><td><span class="sess">Cloud Workspace UI Components</span></td><td>78</td><td>7.32 M</td><td>$0.12</td><td><span class="badge ok">Pass</span></td><td>Workspace shell + Linear token system</td></tr>
+  <tr><td><span class="sess">Simplifying UI/UX across features</span></td><td>50</td><td>3.25 M</td><td>$0.19</td><td><span class="badge ok">Pass</span></td><td>Navigation unified; browser-verified flows</td></tr>
+  <tr><td><span class="sess">Full-fledged chat feature development</span> (plan + fork)</td><td>12+108</td><td>0.31+11.22 M</td><td>$0.15</td><td><span class="badge ok">Pass</span></td><td>Chat orchestration; contract files</td></tr>
+  <tr><td><span class="sess">Route the app by feature</span></td><td>54</td><td>3.78 M</td><td>$0</td><td><span class="badge ok">Pass</span></td><td>Byte-identical routing refactor</td></tr>
+  <tr><td><span class="sess">Chat DB schema, seed, deps</span></td><td>25</td><td>0.71 M</td><td>$0</td><td><span class="badge ok">Pass</span></td><td>chat tables + idempotent seed</td></tr>
+  <tr><td><span class="sess">Chat REST API routes</span></td><td>12</td><td>0.32 M</td><td>$0</td><td><span class="badge ok">Pass</span></td><td>six API routes</td></tr>
+  <tr><td><span class="sess">WebSocket chat server</span></td><td>18</td><td>0.50 M</td><td>$0</td><td><span class="badge ok">Pass</span></td><td>Socket.IO server (later replaced)</td></tr>
+  <tr><td><span class="sess">Build real-time chat UI</span></td><td>93</td><td>9.95 M</td><td>$0</td><td><span class="badge ok">Pass</span></td><td>full chat UI with race fixes</td></tr>
+  <tr><td><span class="sess">Fill chat area; remove New message and Messages</span></td><td>175</td><td>17.41 M</td><td>$0.31</td><td><span class="badge ok">Pass</span></td><td>layout maturity (v4-pro)</td></tr>
+  <tr><td><span class="sess">Task manager with list, calendar, todo, timeline</span></td><td>301</td><td>42.49 M</td><td>$0.39</td><td><span class="badge ok">Pass</span></td><td>tasks/reminders/mentions; journal incident</td></tr>
+  <tr><td><span class="sess">Meeting feature and video call interface</span></td><td>134</td><td>11.74 M</td><td>$0</td><td><span class="badge ok">Pass</span></td><td>WebRTC mesh; glare fix</td></tr>
+  <tr><td><span class="sess">Upload feature for images, files, docs</span></td><td>279</td><td>40.26 M</td><td>$0.09</td><td><span class="badge ok">Pass</span></td><td>files/folders/lightbox/glyphs</td></tr>
+  <tr><td><span class="sess">Signup/signin page with auth and mock data</span></td><td>116</td><td>6.88 M</td><td>$0.02</td><td><span class="badge ok">Pass</span></td><td>demo accounts (audit-flagged)</td></tr>
+  <tr><td><span class="sess">Workspace data isolation and admin management</span></td><td>150</td><td>20.65 M</td><td>$0.20</td><td><span class="badge ok">Pass</span></td><td>multi-tenancy, isolation proven</td></tr>
+  <tr><td><span class="sess">bun run ws not working</span></td><td>87</td><td>3.56 M</td><td>$0.01</td><td><span class="badge ok">Pass</span></td><td>ghost-session diagnosis</td></tr>
+  <tr><td><span class="sess">Production readiness and dead code cleanup</span></td><td>301</td><td>63.25 M</td><td>$1.30</td><td><span class="badge ok">Pass</span> (via forks)</td><td>deployment architecture + audits</td></tr>
+  <tr><td><span class="sess">Audit app architecture</span> / <span class="sess">Audit security surfaces</span></td><td>27/23</td><td>1.51/1.16 M</td><td>$0</td><td><span class="badge ok">Pass</span></td><td>risk inventory</td></tr>
+  <tr><td>landing / home / meetings-admin / sidebar / responsive / docker / misc (12 sessions)</td><td>—</td><td>—</td><td>—</td><td>mostly <span class="badge ok">Pass</span></td><td>product polish across surfaces</td></tr>
 </table>
 
 <h3>August 16 — infra migrations</h3>
 <table>
-  <tr><th>Session</th><th>Title</th><th>Msgs</th><th>Outcome</th></tr>
-  <tr><td><span class="sid">ses_ff69ea22</span></td><td>Migrating file uploads to UploadThing</td><td>128</td><td>v7 handlers, backfill, 100 MB quota (<span class="commit">e25c925</span>, <span class="commit">bc1e37f</span>, <span class="commit">f426ebb</span>)</td></tr>
-  <tr><td><span class="sid">ses_ff688ae9</span></td><td>Turso database integration</td><td>132</td><td>Web client, guards, deploy migrations, data parity (<span class="commit">36b108e</span>, <span class="commit">3699dd7</span>, <span class="commit">ee14313</span>)</td></tr>
-  <tr><td><span class="sid">ses_ff656f7a</span></td><td>Configure .dev.vars (worker)</td><td>18</td><td>Shared secret aligned; local origins</td></tr>
-  <tr><td><span class="sid">ses_ff648429</span></td><td>Fix video calling after WS migration</td><td>184</td><td>Meetings on worker (<span class="commit">501f6cf</span>, <span class="commit">cf762bc</span>)</td></tr>
-  <tr><td>icons / favicon / fonts / rebrand</td><td>PixelArticons, favicon, Schibsted+Hanken, Cloud Workspace</td><td>152</td><td>Identity settled</td></tr>
+  <tr><th>Session</th><th>Msgs</th><th>Tokens</th><th>Cost</th><th>Verdict</th><th>Produced</th></tr>
+  <tr><td><span class="sess">Migrating file uploads to UploadThing from fs</span></td><td>128</td><td>12.44 M</td><td>$0.07</td><td><span class="badge ok">Pass</span></td><td>v7 handlers, backfill, quota</td></tr>
+  <tr><td><span class="sess">Turso database integration tasks</span></td><td>132</td><td>7.63 M</td><td>$0</td><td><span class="badge ok">Pass</span></td><td>web client, guards, parity dump</td></tr>
+  <tr><td><span class="sess">Configure .dev.vars for WebSocket dev setup</span> (worker)</td><td>18</td><td>0.16 M</td><td>$0</td><td><span class="badge ok">Pass</span></td><td>shared secret aligned</td></tr>
+  <tr><td><span class="sess">Using Schibsted Grotesk for headings</span></td><td>34</td><td>0.91 M</td><td>$0</td><td><span class="badge ok">Pass</span></td><td>typography system</td></tr>
+  <tr><td><span class="sess">Rebranding Cedar &amp; Co. to cloud workspace</span></td><td>34</td><td>1.07 M</td><td>$0</td><td><span class="badge bad">Fail</span>*</td><td>rebrand landed despite provider error</td></tr>
+  <tr><td><span class="sess">Fix video calling after WS migration</span></td><td>184</td><td>20.59 M</td><td>$0.19</td><td><span class="badge ok">Pass</span></td><td>meetings on worker; camera fix</td></tr>
+  <tr><td>icons / favicon / misc</td><td>—</td><td>—</td><td>—</td><td><span class="badge ok">Pass</span></td><td>identity settled</td></tr>
 </table>
 
-<h3>August 17 — realtime and product growth</h3>
+<h3>August 17–18 — realtime, finale</h3>
 <table>
-  <tr><th>Session</th><th>Title</th><th>Msgs</th><th>Outcome</th></tr>
-  <tr><td><span class="sid">ses_ff63f124</span></td><td>Add call option on calls page and chat</td><td>164</td><td>Ephemeral calls (<span class="commit">d504530</span>); wrong-target-migration 500 fixed</td></tr>
-  <tr><td><span class="sid">ses_fef66932</span></td><td>Custom landing page nav</td><td>48</td><td>Pill nav with scroll-spy (<span class="commit">ac1343a</span>)</td></tr>
-  <tr><td><span class="sid">ses_fef47bb6</span></td><td>PostHog setup</td><td>44</td><td>Analytics with masking; ingestion verified in browser</td></tr>
-  <tr><td><span class="sid">ses_fef279de</span></td><td>Enabling OAuth authentication</td><td>12+</td><td>Provider guidance; callback URLs</td></tr>
+  <tr><th>Session</th><th>Msgs</th><th>Tokens</th><th>Cost</th><th>Verdict</th><th>Produced</th></tr>
+  <tr><td><span class="sess">Add call option on calls page and chat</span></td><td>164</td><td>24.05 M</td><td>$0.18</td><td><span class="badge warn">Aborted</span>, resumed</td><td>ephemeral calls</td></tr>
+  <tr><td><span class="sess">Custom landing page nav with icons design</span></td><td>48</td><td>1.30 M</td><td>$0.38</td><td><span class="badge warn">Aborted</span></td><td>pill nav (work landed via follow-ups)</td></tr>
+  <tr><td><span class="sess">PostHog setup for app</span></td><td>44</td><td>3.29 M</td><td>$0.06</td><td><span class="badge ok">Pass</span></td><td>analytics, browser-verified</td></tr>
+  <tr><td><span class="sess">Enabling OAuth authentication</span></td><td>12+</td><td>0.09 M+</td><td>$0</td><td><span class="badge ok">Pass</span></td><td>provider wiring guidance</td></tr>
+  <tr><td><span class="sess">Vercel CLI unused secrets scan</span></td><td>16</td><td>0.21 M</td><td>$0</td><td><span class="badge ok">Pass</span></td><td>found zero Vercel vars — the starting gun</td></tr>
+  <tr><td><span class="sess">Deploy project on Workers</span> / <span class="sess">Durable Object usage question</span></td><td>15/5</td><td>0.11/0.03 M</td><td>$0</td><td><span class="badge ok">Pass</span></td><td>worker live; DO explainer</td></tr>
+  <tr><td><span class="sess">Remove unused code and data from app</span></td><td>91</td><td>6.26 M</td><td>$0.10</td><td><span class="badge warn">Aborted</span></td><td>knip sweep (landed via <span class="cname">remove dead code</span>)</td></tr>
+  <tr><td><span class="sess">Vercel build error: module not found recents-data</span></td><td>105</td><td>5.47 M</td><td>$0.07</td><td><span class="badge ok">Pass</span></td><td>build fixed; guard episode</td></tr>
+  <tr><td><span class="sess">Vercel prod invalid origin login error</span></td><td>95</td><td>3.05 M</td><td>$0</td><td><span class="badge warn">Aborted</span></td><td>origin chain untangled; curl-only "done"</td></tr>
+  <tr><td><span class="sess">Why AI can't finalize project leaving localhost</span> + fork</td><td>235+306</td><td>22.73 M+</td><td>$0.31+</td><td><span class="badge ok">Pass</span></td><td>diagnosis, the fix, hardening, reports, docs</td></tr>
+  <tr><td><span class="sess">Opencode session history stats to HTML report</span></td><td>71</td><td>2.11 M</td><td>$0.04</td><td><span class="badge ok">Pass</span></td><td>opencode-sessions-report.html</td></tr>
+  <tr><td><span class="sess">Content index styling fix in PRODUCTION_REPORT.html</span></td><td>6</td><td>—</td><td>—</td><td><span class="badge ok">Pass</span></td><td>TOC card styling</td></tr>
 </table>
-
-<h3>August 18 — production finale</h3>
-<table>
-  <tr><th>Session</th><th>Title</th><th>Msgs</th><th>Outcome</th></tr>
-  <tr><td><span class="sid">ses_fec3158d</span></td><td>Vercel build error: recents-data</td><td>105</td><td>Untracked-file lesson; dead-code sweep (<span class="commit">0331dc5</span>, <span class="commit">23f0532</span>); guard episode (<span class="commit">5862564</span>)</td></tr>
-  <tr><td><span class="sid">ses_fec04814</span></td><td>Vercel prod invalid origin login error</td><td>95</td><td>Trusted origins, CSP, worker origins; curl-only "done"</td></tr>
-  <tr><td><span class="sid">ses_febf8a7d</span> + <span class="sid">ses_feaac294</span></td><td>Why AI can't finalize → the real fix</td><td>541</td><td>Root cause; chat on worker; chat2; browser proof; heartbeats; v2 rooms; docs; reports</td></tr>
-  <tr><td><span class="sid">ses_febb9bd9</span></td><td>Session-history stats to HTML report</td><td>71</td><td>opencode-sessions-report.html</td></tr>
-</table>
+<p class="small">* The only <span class="badge bad">Fail</span> in the export: a provider error ended the branding session, but its changes were committed and survived. Nine additional April sessions at the same directory path predate this project (earlier experiments at "old path") and are excluded from all counts above.</p>
 
 <!-- =================================================================== -->
-<h2 id="s22"><a class="hlink" href="#s22">22. Appendix B — Commit index</a></h2>
+<h2 id="s23"><a class="hlink" href="#s23">23. Appendix B — Commit index</a></h2>
 
-<h3>cloud-workspace (app)</h3>
-<pre>
-2c239d8 08-15 13:05 first commit
-a7765a9 08-15 16:27 new stuff                          (routes + chat + shell split)
-e15e286 08-15 22:31 feat: real-data home page, landing page, collapsible sidebar, avatars
-9066982 08-15 22:32 perf: compress uploaded avatars and workspace logos client-side
-9fcffac 08-15 22:42 fix: sidebar shows only live meetings and polls for status changes
-d343a0a 08-15 22:58 chore: add docker compose setup for local development
-3b509cb 08-15 23:02 feat: expand landing page with full product sections
-7fce290 08-15 23:03 fix: improve mobile responsiveness across workspace views
-66031a5 08-15 23:51 fix: keep sidebar fixed height on non-messages pages
-fd3f7fb 08-16 12:44 refactor: replace lucide-react with pixelarticons icons
-e25c925 08-16 12:47 feat: migrate file uploads from filesystem to UploadThing
-37fd692..86127b9 08-16 favicon iterations
-bc1e37f 08-16 12:54 feat: enforce 100 MB workspace storage limit and show usage
-f426ebb 08-16 12:58 chore: backfill legacy uploads to UploadThing
-36b108e 08-16 13:35 feat: use Turso with web client and add database health checks
-3699dd7 08-16 13:46 fix: fail fast without prod DB URL, deploy migrations, purge UploadThing on workspace delete
-876425e 08-16 13:59 feat(ui): Schibsted Grotesk headings, Hanken Grotesk body
-ee14313 08-16 14:02 fix: prefer SQLite in development so local demo accounts work
-cabc92f 08-16 14:04 rebrand Cedar & Co. to Cloud Workspace
-501f6cf 08-16 14:17 fix(meetings): connect video calling to the Cloudflare realtime worker
-a61ebf5 08-17 00:29 fix: allow LAN origin in dev so client JS hydrates on phone
-e277f6c 08-17 00:33 fix(meetings): make leaving a call the red action
-2e2a1bc 08-17 00:42 fix(chat): group messages with matching sender time
-7c7f760 08-17 00:46 fix(chat): reduce grouped message spacing
-cf762bc 08-17 13:29 fix(meetings): attach local camera stream to video tile
-d504530 08-17 21:56 feat(calls): add 1-on-1 and group calls that end when hung up
-ac1343a 08-17 22:19 landing: floating pill nav with icon links and scroll-spy
-1c3db79 08-17 22:27 landing: match nav backdrop to hero background
-8fdf08f 08-17 22:49 style: render headings at weight 500 for a thinner look
-10f7d64 08-18 12:44 chore: harden Vercel production deployment
-ed05abb 08-18 12:46 fix: reject insecure client URLs in production
-a80478b 08-18 12:53 docs: configure deployed realtime worker URL
-0331dc5 08-18 13:09 feat: add recents API and analytics; harden production build
-23f0532 08-18 13:44 chore: remove dead code
-5862564 08-18 13:53 fix: allow localhost BETTER_AUTH_URL in Vercel build guard   (later superseded)
-e5b34de 08-18 14:01 fix: allow PostHog scripts in CSP   (carried env-validation hardening)
-534aecc 08-18 14:13 chore: point NEXT_PUBLIC_WS_URL at the realtime worker
-8448d78 08-18 14:27 feat(chat): migrate chat realtime from Socket.IO to the Cloudflare worker
-cf152ac 08-18 14:38 fix(chat): use chat2 room to escape a stale Cloudflare DO instance
-3d99e17 08-18 15:24 docs: add extensive production finalization report
-bcdd083 08-18 15:32 docs: add fix-and-ship workflow and Vercel CLI usage to production report
-9a1155c 08-18 20:15 docs: complete AGENTS.md and DEPLOYMENT.md; add handoff document
-62cae06 08-18 20:27 fix(realtime): staleness watchdog on chat/meeting/call sockets
-a19ff48 08-18 20:31 fix(realtime): version meeting and call rooms to fresh DO instances
-b1c0b24 08-18 21:47 style(report): style table of contents as a card
-</pre>
+<h3>cloud-workspace (app), in order</h3>
+<table>
+  <tr><th>Date</th><th>Commit</th><th>What it did</th></tr>
+  <tr><td>08-15</td><td><span class="cname">first commit</span></td><td>Scaffold + Drizzle/Better Auth/shadcn/compose foundation</td></tr>
+  <tr><td>08-15</td><td><span class="cname">new stuff</span></td><td>Route-group split, full chat stack, tasks/meetings/uploads/auth/workspaces from day-1 sessions</td></tr>
+  <tr><td>08-15</td><td><span class="cname">real-data home page, collapsible sidebar, avatars</span></td><td>Logged-in home; sidebar collapse</td></tr>
+  <tr><td>08-15</td><td><span class="cname">compress uploaded avatars and workspace logos client-side</span></td><td>Image sizing</td></tr>
+  <tr><td>08-15</td><td><span class="cname">sidebar shows only live meetings and polls for status changes</span></td><td>Live-meeting widget truthfulness</td></tr>
+  <tr><td>08-15</td><td><span class="cname">docker compose setup for local development</span></td><td>One-command local stack</td></tr>
+  <tr><td>08-15</td><td><span class="cname">expand landing page with full product sections</span></td><td>Marketing surface</td></tr>
+  <tr><td>08-15</td><td><span class="cname">improve mobile responsiveness across workspace views</span></td><td>Responsive pass 1</td></tr>
+  <tr><td>08-15</td><td><span class="cname">keep sidebar fixed height on non-messages pages</span></td><td>Layout fix</td></tr>
+  <tr><td>08-16</td><td><span class="cname">replace lucide-react with pixelarticons icons</span></td><td>Icon language</td></tr>
+  <tr><td>08-16</td><td><span class="cname">migrate file uploads from filesystem to UploadThing</span></td><td>Serverless blobs</td></tr>
+  <tr><td>08-16</td><td>favicon series (replace default · retro pixel cloud · white palette · pixel letter C · app-grid icon · round tile)</td><td>Identity iterations</td></tr>
+  <tr><td>08-16</td><td><span class="cname">backfill legacy uploads to UploadThing</span></td><td>Data migration completion</td></tr>
+  <tr><td>08-16</td><td><span class="cname">enforce 100 MB workspace storage limit and show usage</span></td><td>Three-layer quota + storage pill</td></tr>
+  <tr><td>08-16</td><td><span class="cname">use Turso with web client and add database health checks</span></td><td>Prod database</td></tr>
+  <tr><td>08-16</td><td><span class="cname">fail fast without prod DB URL, deploy migrations, purge UploadThing on workspace delete</span></td><td>Guards + release-blocking migrations</td></tr>
+  <tr><td>08-16</td><td><span class="cname">use Schibsted Grotesk for headings and Hanken Grotesk for body</span></td><td>Typography</td></tr>
+  <tr><td>08-16</td><td><span class="cname">prefer SQLite in development so local demo accounts work</span></td><td>Env precedence fix</td></tr>
+  <tr><td>08-16</td><td><span class="cname">rebrand Cedar &amp; Co. to Cloud Workspace</span></td><td>Naming</td></tr>
+  <tr><td>08-16</td><td><span class="cname">connect video calling to the Cloudflare realtime worker</span></td><td>Meetings on new transport</td></tr>
+  <tr><td>08-17</td><td><span class="cname">allow LAN origin in dev so client JS hydrates on phone</span></td><td>Phone testing</td></tr>
+  <tr><td>08-17</td><td><span class="cname">make leaving a call the red action</span></td><td>UX correction</td></tr>
+  <tr><td>08-17</td><td><span class="cname">group messages with matching sender time</span> · <span class="cname">reduce grouped message spacing</span></td><td>Chat density</td></tr>
+  <tr><td>08-17</td><td><span class="cname">attach local camera stream to video tile</span></td><td>Camera fix</td></tr>
+  <tr><td>08-17</td><td><span class="cname">calls that end when hung up</span></td><td>Ephemeral calls feature</td></tr>
+  <tr><td>08-17</td><td><span class="cname">floating pill nav with icon links and scroll-spy</span> · <span class="cname">match nav backdrop to hero background</span></td><td>Landing polish</td></tr>
+  <tr><td>08-17</td><td><span class="cname">render headings at weight 500 for a thinner look</span></td><td>Type weight</td></tr>
+  <tr><td>08-18</td><td><span class="cname">harden Vercel production deployment</span></td><td>Guard + headers introduced</td></tr>
+  <tr><td>08-18</td><td><span class="cname">reject insecure client URLs in production</span></td><td>client-config enforcement</td></tr>
+  <tr><td>08-18</td><td><span class="cname">configure deployed realtime worker URL</span></td><td>Docs truth</td></tr>
+  <tr><td>08-18</td><td><span class="cname">add recents API and analytics; harden production build</span></td><td>Recents/analytics; fixed the clone-missing-file build</td></tr>
+  <tr><td>08-18</td><td><span class="cname">remove dead code</span></td><td>knip sweep, −312 lines</td></tr>
+  <tr><td>08-18</td><td><span class="cname">allow localhost BETTER_AUTH_URL in Vercel build guard</span></td><td>The band-aid (later superseded by VERCEL_ENV-scoped guard)</td></tr>
+  <tr><td>08-18</td><td><span class="cname">allow PostHog scripts in CSP</span></td><td>CSP host + carried env-validation hardening</td></tr>
+  <tr><td>08-18</td><td><span class="cname">point NEXT_PUBLIC_WS_URL at the realtime worker</span></td><td>Public socket URL truth</td></tr>
+  <tr><td>08-18</td><td><span class="cname">migrate chat realtime from Socket.IO to the Cloudflare worker</span></td><td>The real fix — client rewrite + legacy removal</td></tr>
+  <tr><td>08-18</td><td><span class="cname">use chat2 room to escape a stale Cloudflare DO instance</span></td><td>Stale-instance escape</td></tr>
+  <tr><td>08-18</td><td><span class="cname">add extensive production finalization report</span> · <span class="cname">add fix-and-ship workflow and Vercel CLI usage to production report</span> · <span class="cname">style table of contents as a card</span></td><td>production-report lineage (now production-report-2.html)</td></tr>
+  <tr><td>08-18</td><td><span class="cname">complete AGENTS.md and DEPLOYMENT.md; add handoff document</span></td><td>Institutional memory</td></tr>
+  <tr><td>08-18</td><td><span class="cname">staleness watchdog on chat/meeting/call sockets</span></td><td>Client idle defense</td></tr>
+  <tr><td>08-18</td><td><span class="cname">version meeting and call rooms to fresh DO instances</span></td><td>meeting:v2:/call:v2: rooms</td></tr>
+  <tr><td>08-24</td><td><span class="cname">docs: add complete development history report compiled from sessions and git</span> · this refinement</td><td>The document you are reading</td></tr>
+</table>
 
-<h3>cloud-workspace-realtime (worker)</h3>
-<pre>
-5ee6df0 08-16 13:45 feat: scaffold Cloudflare realtime worker with durable objects
-d119a92 08-16 13:53 fix: use http origin for local wrangler dev
-b1c5ab2 08-16 14:17 feat(meetings): implement meeting signaling in RealtimeRoom
-949191a 08-17 00:34 fix(realtime): allow local loopback origins
-4fda148 08-17 21:39 fix: preserve websocket upgrade headers through durable object
-5548bae 08-17 21:40 test: exercise websocket frame round trips with origin
-50b5f99 08-17 21:57 feat: broadcast call:hangup for ephemeral call rooms
-77be2e9 08-18 12:53 docs: use deployed realtime worker in worker tests
-da0806f 08-18 14:27 feat(chat): realtime chat on the worker with Turso persistence
-d5669b9 08-18 20:15 docs: add AGENTS.md for the realtime worker
-78bed4b 08-18 20:26 fix(realtime): heartbeat pings to keep idle sockets alive
-</pre>
+<h3>cloud-workspace-realtime (worker), in order</h3>
+<table>
+  <tr><th>Date</th><th>Commit</th><th>What it did</th></tr>
+  <tr><td>08-16</td><td><span class="cname">scaffold Cloudflare realtime worker with durable objects</span></td><td>New repo, wrangler, RealtimeRoom</td></tr>
+  <tr><td>08-16</td><td><span class="cname">use http origin for local wrangler dev</span></td><td>Local origins</td></tr>
+  <tr><td>08-16</td><td><span class="cname">implement meeting signaling in RealtimeRoom</span></td><td>WebRTC relay</td></tr>
+  <tr><td>08-17</td><td><span class="cname">allow local loopback origins</span></td><td>Dev convenience, safely scoped</td></tr>
+  <tr><td>08-17</td><td><span class="cname">preserve websocket upgrade headers through durable object</span></td><td>Upgrade-path fix</td></tr>
+  <tr><td>08-17</td><td><span class="cname">exercise websocket frame round trips with origin</span></td><td>Wire tests</td></tr>
+  <tr><td>08-17</td><td><span class="cname">broadcast call:hangup for ephemeral call rooms</span></td><td>Call lifecycle event</td></tr>
+  <tr><td>08-18</td><td><span class="cname">use deployed realtime worker in worker tests</span></td><td>Test target truth</td></tr>
+  <tr><td>08-18</td><td><span class="cname">realtime chat on the worker with Turso persistence</span></td><td>The chat implementation</td></tr>
+  <tr><td>08-18</td><td><span class="cname">AGENTS.md for the realtime worker</span></td><td>Agent context</td></tr>
+  <tr><td>08-18</td><td><span class="cname">heartbeat pings to keep idle sockets alive</span></td><td>Idle-drop defense</td></tr>
+</table>
 
 <footer>
-  Prepared on August 24, 2026 directly from the OpenCode session database (~/.local/share/opencode/opencode.db), both repositories' git histories, and the current source tree. Every session ID and commit hash cited above resolves to primary evidence; the extraction queries and digests used to compile this report live in /tmp/opencode/report-extract/.
+  Prepared on August 24, 2026 directly from the OpenCode session database, the per-session statistics export (opencode-sessions-report.html), both repositories' git histories, and the current source tree — with production-report-2.html as the day-4 companion deep-dive. Sessions are cited by stored title; commits by their message subjects. Extraction queries and digests live in /tmp/opencode/report-extract/.
 </footer>
 
 </div>
@@ -909,11 +993,12 @@ d5669b9 08-18 20:15 docs: add AGENTS.md for the realtime worker
           <li><a href="#s15">Hardening</a></li>
           <li><a href="#s16">Architecture</a></li>
           <li><a href="#s17">Decisions</a></li>
-          <li><a href="#s18">Lessons</a></li>
-          <li><a href="#s19">Stats</a></li>
-          <li><a href="#s20">Now</a></li>
-          <li><a href="#s21">Sessions</a></li>
-          <li><a href="#s22">Commits</a></li>
+          <li><a href="#s18">Easy/hard</a></li>
+          <li><a href="#s19">Lessons</a></li>
+          <li><a href="#s20">Stats</a></li>
+          <li><a href="#s21">Now</a></li>
+          <li><a href="#s22">Sessions</a></li>
+          <li><a href="#s23">Commits</a></li>
         </ol>
       </nav>
     </aside>
